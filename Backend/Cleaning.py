@@ -2,11 +2,15 @@ import pandas as pd
 import joblib
 import shap
 import numpy as np
+import os
 
-model=joblib.load(r'C:\Users\Lenovo\OneDrive\Desktop\Home Credit  Default Risk\data cleaning\LGB_CLASSIFIER_MODEL.pkl')
+current_dir = os.path.dirname(__file__)
+model_path = os.path.abspath(os.path.join(current_dir, '..', 'data cleaning', 'LGB_CLASSIFIER_MODEL.pkl'))
+
+model=joblib.load(model_path)
 explainer=shap.TreeExplainer(model)
 
-def process_application(raw_data):
+def process_application(raw_data)->dict:
     ml_feature={}
     ml_feature['CODE_GENDER']=raw_data['GENDER']
     ml_feature['NAME_EDUCATION_TYPE']=raw_data['QUALIFICATION']
@@ -112,8 +116,8 @@ def process_application(raw_data):
         "Model confidence":f"{round(confidence)}%",
         "Recommended Rate":interest_rate,
         "Loan Amount Decision":recommended_action,
-        "Strength":f"{strength}",
-        "Red Flag":f"{red_flag}",
+        "Strength":strength,
+        "Red Flag":red_flag
 
 
 
