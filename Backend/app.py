@@ -9,8 +9,8 @@ import pandas as pd
 import numpy as np
 
 
-API_SINGLE_URL = "http://127.0.0.1:8000/predict"
-API_BATCH_URL = "http://127.0.0.1:8000/predict_batch"
+API_SINGLE_URL = os.environ.get("API_SINGLE_URL", "http://127.0.0.1:8000/predict")
+API_BATCH_URL = os.environ.get("API_BATCH_URL", "http://127.0.0.1:8000/predict_batch")
 
 
 GENDER_OPTIONS = ["M", "F", "X"]
@@ -357,7 +357,7 @@ def go_back_to_input():
     return gr.update(visible=True), gr.update(visible=False)
 
 
-with gr.Blocks(theme=THEME, css=CUSTOM_CSS, title="System Risk Evaluation Desk") as demo:
+with gr.Blocks(title="System Risk Evaluation Desk") as demo:
 
     gr.Markdown("# 🏦 System Risk Evaluation Desk", elem_id="app-header")
     gr.Markdown(
@@ -366,7 +366,6 @@ with gr.Blocks(theme=THEME, css=CUSTOM_CSS, title="System Risk Evaluation Desk")
     )
 
     with gr.Column(visible=True) as input_page:
-
         with gr.Tab("📝 Form input"):
             with gr.Group():
                 gr.Markdown("#### Personal & employment details")
@@ -452,4 +451,4 @@ with gr.Blocks(theme=THEME, css=CUSTOM_CSS, title="System Risk Evaluation Desk")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
-    demo.launch(server_name="0.0.0.0", server_port=port)
+    demo.launch(server_name="0.0.0.0", server_port=port, theme=THEME, css=CUSTOM_CSS)

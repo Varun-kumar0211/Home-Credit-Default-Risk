@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   api:
     build: .
@@ -6,8 +5,8 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
-    environment:
-      - PORT=8000
+    restart: unless-stopped
+
   ui:
     build: .
     working_dir: /app/Backend
@@ -15,7 +14,8 @@ services:
     ports:
       - "7860:7860"
     environment:
-      - API_SINGLE_URL=http://api:8000/predict
-      - API_BATCH_URL=http://api:8000/batch
+      API_SINGLE_URL: http://api:8000/predict
+      API_BATCH_URL: http://api:8000/predict_batch
     depends_on:
       - api
+    restart: unless-stopped

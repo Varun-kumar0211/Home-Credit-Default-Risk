@@ -1,0 +1,12 @@
+gradio
+fastapi
+uvicorn[standard]
+pandas
+numpy
+requests
+joblib
+shap
+lightgbm
+scikit-learn
+pydantic
+python-multipart
