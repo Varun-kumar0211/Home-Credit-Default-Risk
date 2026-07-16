@@ -13,7 +13,7 @@ until curl -sSf http://127.0.0.1:8000/health > /dev/null 2>&1 || [ $count -ge 30
   echo "Waiting for API to start... ($count)"
   sleep 1
   count=$((count+1))
-
+done
 
 if [ $count -ge 30 ]; then
   echo "API did not start within timeout (30s). Check logs."
@@ -22,4 +22,3 @@ fi
 
 # exec the Gradio UI (replaces shell)
 exec python app.py
-python app.py
