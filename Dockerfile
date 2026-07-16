@@ -22,12 +22,10 @@ WORKDIR /app
 
 COPY --from=base /usr/local /usr/local
 COPY . .
-COPY entrypoint.sh ./
-RUN chmod +x ./entrypoint.sh
 
 WORKDIR /app/Backend
 EXPOSE 7860 8000
 
-COPY entrypoint.sh ./Backend/entrypoint.sh
-RUN chmod +x ./Backend/entrypoint.sh
+COPY entrypoint.sh /app/Backend/entrypoint.sh
+RUN chmod +x /app/Backend/entrypoint.sh
 CMD ["/bin/sh", "-c", "/app/Backend/entrypoint.sh"]
