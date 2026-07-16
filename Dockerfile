@@ -28,4 +28,6 @@ RUN chmod +x ./entrypoint.sh
 WORKDIR /app/Backend
 EXPOSE 7860 8000
 
-CMD ["/bin/sh", "-c", "./entrypoint.sh"]
+COPY entrypoint.sh ./Backend/entrypoint.sh
+RUN chmod +x ./Backend/entrypoint.sh
+CMD ["/bin/sh", "-c", "/app/Backend/entrypoint.sh"]
