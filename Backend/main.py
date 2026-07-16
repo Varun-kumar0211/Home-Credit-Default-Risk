@@ -38,3 +38,9 @@ def predict_batch(data:List[ApplicationSchema] = Body(...)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+
+
+# Lightweight health endpoint used by the container startup script
+@app.get("/health")
+def health():
+    return {"status": "ok"}

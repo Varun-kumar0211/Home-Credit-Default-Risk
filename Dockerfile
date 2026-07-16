@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libgomp1 libomp-dev \
+    && apt-get install -y --no-install-recommends build-essential libgomp1 libomp-dev curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
@@ -22,8 +22,10 @@ WORKDIR /app
 
 COPY --from=base /usr/local /usr/local
 COPY . .
+COPY entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
 
 WORKDIR /app/Backend
 EXPOSE 7860 8000
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port 8000 & python app.py"]
+CMD ["/bin/sh", "-c", "./entrypoint.sh"]
