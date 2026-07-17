@@ -2,6 +2,8 @@
 
 import os
 import re
+import time
+from urllib.parse import urlparse
 
 import gradio as gr
 import requests
@@ -449,6 +451,28 @@ with gr.Blocks(title="System Risk Evaluation Desk") as demo:
     back_action.click(fn=go_back_to_input, inputs=[], outputs=[input_page, output_page])
 
 
+def wait_for_api(url: str, timeout: int = 30, interval: float = 1.0) -> None:
+    """Block until the backend API responds successfully or timeout occurs."""
+    parsed = urlparse(url)
+    if not parsed.scheme:
+        url = f"http://{url}"
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            response = requests.get(url, timeout=2)
+            if response.status_code == 200:
+                return
+        except requests.RequestException:
+            pass
+        time.sleep(interval)
+
+    raise RuntimeError(f"API did not respond within {timeout} seconds: {url}")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
+    api_health_url = os.environ.get("API_HEALTH_URL", "http://127.0.0.1:8000/health")
+    print(f"Waiting for API at {api_health_url} before launching Gradio...")
+    wait_for_api(api_health_url)
     demo.launch(server_name="0.0.0.0", server_port=port, theme=THEME, css=CUSTOM_CSS)
