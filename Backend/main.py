@@ -1,6 +1,16 @@
-from fastapi import FastAPI, HTTPException,Body
+import os
+import sys
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
 from typing import List, Union
+
+# Ensure the backend directory is on sys.path for module imports
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 from Cleaning import process_application
 
 app = FastAPI(title="Credit Scoring API Engine")
@@ -37,7 +47,8 @@ def predict_batch(data:List[ApplicationSchema] = Body(...)):
     
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    reload_flag = os.environ.get("DEV_RELOAD", "false").lower() in ("1", "true", "yes")
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=reload_flag)
 
 
 # Lightweight health endpoint used by the container startup script

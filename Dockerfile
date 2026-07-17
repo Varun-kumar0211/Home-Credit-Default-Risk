@@ -20,6 +20,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 procps curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=base /usr/local /usr/local
 COPY . .
 

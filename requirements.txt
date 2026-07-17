@@ -2,7 +2,7 @@ gradio
 fastapi
 uvicorn[standard]
 pandas
-numpy
+numpy<2
 requests
 joblib
 shap
