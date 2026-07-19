@@ -13,9 +13,9 @@ Open:
 - Gradio UI: http://localhost:7860
 - FastAPI docs: http://localhost:8000/docs
 
-## Deploy on Hugging Face Spaces with Docker
+## Deploy on Render with Docker
 
-This project can run in a single Hugging Face Space using the root `Dockerfile`.
+This project can run in a single Render Space using the root `Dockerfile`.
 The container starts both services together:
 - `uvicorn Backend.main:app --host 0.0.0.0 --port 8000`
 - `python Backend/app.py`
