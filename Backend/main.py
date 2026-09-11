@@ -25,6 +25,19 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="Credit Scoring API Engine")
 
 
+@app.get("/")
+def root():
+    return {
+        "service": "Credit Scoring API Engine",
+        "status": "ok",
+        "model": model_source,
+        "health": "/health",
+        "docs": "/docs",
+        "single_prediction": "/predict",
+        "batch_prediction": "/predict_batch",
+    }
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
