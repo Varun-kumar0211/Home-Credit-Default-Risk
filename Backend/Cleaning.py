@@ -32,15 +32,27 @@ def _safe_ratio(numerator: float, denominator: float) -> float:
     return numerator / denominator
 
 
+def _normalize_threshold(value: float, fallback: float) -> float:
+    """Accept either a fraction (0.08) or UI percentage (8)."""
+    if value is None:
+        return fallback
+    normalized = float(value)
+    if normalized > 1:
+        normalized /= 100
+    if not np.isfinite(normalized) or not 0 <= normalized <= 1:
+        raise ValueError("Decision thresholds must be between 0 and 1 or 0% and 100%")
+    return normalized
+
+
 def process_application(raw_data)->dict:
-    request_approve_threshold = raw_data.get('APPROVE_THRESHOLD')
-    request_decline_threshold = raw_data.get('DECLINE_THRESHOLD')
-    request_approve_threshold = (
-        approve_threshold if request_approve_threshold is None else request_approve_threshold
+    request_approve_threshold = _normalize_threshold(
+        raw_data.get('APPROVE_THRESHOLD'), approve_threshold
     )
-    request_decline_threshold = (
-        decline_threshold if request_decline_threshold is None else request_decline_threshold
+    request_decline_threshold = _normalize_threshold(
+        raw_data.get('DECLINE_THRESHOLD'), decline_threshold
     )
+    if request_approve_threshold >= request_decline_threshold:
+        raise ValueError("APPROVE_THRESHOLD must be lower than DECLINE_THRESHOLD")
     ml_feature={}
     ml_feature['CODE_GENDER']=raw_data['GENDER']
     ml_feature['NAME_EDUCATION_TYPE']=raw_data['QUALIFICATION']
@@ -163,6 +175,8 @@ def process_application(raw_data)->dict:
         "Trust Score":f"{trust_score:.2f}/100",
         "Risk Score":f"{risk_score:.2f}/100",
         "Model confidence":f"{round(confidence)}%",
+        "Approve threshold":f"{request_approve_threshold * 100:.2f}%",
+        "Decline threshold":f"{request_decline_threshold * 100:.2f}%",
         "Recommended Rate":interest_rate,
         "Loan Amount Decision":recommended_action,
         "Strength":strength,
