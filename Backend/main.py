@@ -18,7 +18,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from schemas import ApplicationSchema
-from Cleaning import process_application
+from Cleaning import model_source, process_application
 
 logger = logging.getLogger(__name__)
 
@@ -66,4 +66,7 @@ if __name__ == "__main__":
 # Lightweight health endpoint used by the container startup script
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "model": model_source,
+    }

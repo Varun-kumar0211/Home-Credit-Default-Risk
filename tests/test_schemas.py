@@ -2,6 +2,7 @@ import unittest
 
 from pydantic import ValidationError
 
+from Backend.Cleaning import _decision_for_probability, _normalize_threshold
 from Backend.schemas import ApplicationSchema
 
 
@@ -80,6 +81,17 @@ class ApplicationSchemaTests(unittest.TestCase):
 
         with self.assertRaises(ValidationError):
             ApplicationSchema(**payload)
+
+    def test_high_probability_always_declines(self):
+        decision = _decision_for_probability(0.93, 0.08, 0.20)
+
+        self.assertEqual(decision, ("Auto Decline", "Tier C", "N/A"))
+
+    def test_percentage_thresholds_normalize_before_decision(self):
+        approve = _normalize_threshold(8, 0.08)
+        decline = _normalize_threshold(20, 0.20)
+
+        self.assertEqual(_decision_for_probability(0.93, approve, decline)[0], "Auto Decline")
 
 
 if __name__ == "__main__":

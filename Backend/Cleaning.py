@@ -11,6 +11,7 @@ calibrated_model_path = os.path.abspath(
 )
 
 artifact_path = calibrated_model_path if os.path.exists(calibrated_model_path) else model_path
+model_source = "calibrated" if artifact_path == calibrated_model_path else "legacy"
 artifact = joblib.load(artifact_path)
 prediction_model = artifact.predictor if hasattr(artifact, 'predictor') else artifact
 explanation_model = (
@@ -42,6 +43,15 @@ def _normalize_threshold(value: float, fallback: float) -> float:
     if not np.isfinite(normalized) or not 0 <= normalized <= 1:
         raise ValueError("Decision thresholds must be between 0 and 1 or 0% and 100%")
     return normalized
+
+
+def _decision_for_probability(probability: float, approve_cutoff: float,
+                              decline_cutoff: float) -> tuple[str, str, str]:
+    if probability <= approve_cutoff:
+        return "Auto Approve", "Tier A", "5.5%"
+    if probability < decline_cutoff:
+        return "Manual Review Required", "Tier B", "10.5%"
+    return "Auto Decline", "Tier C", "N/A"
 
 
 def process_application(raw_data)->dict:
@@ -133,22 +143,9 @@ def process_application(raw_data)->dict:
     risk_score = default_prob_percentage
     trust_score = 100.0 - default_prob_percentage
 
-    action=""
-    tier=""
-    interest_rate=""
-
-    if prob_default <= request_approve_threshold:
-        action="Auto Approve"
-        tier="Tier A"
-        interest_rate="5.5%"
-    elif prob_default < request_decline_threshold:
-        action="Manual Review Required"
-        tier="Tier B"
-        interest_rate="10.5%"
-    else:
-        action="Auto Decline"
-        tier="Tier C"
-        interest_rate="N/A"
+    action, tier, interest_rate = _decision_for_probability(
+        prob_default, request_approve_threshold, request_decline_threshold
+    )
 
     confidence = max(prob_default, 1.0 - prob_default) * 100
     
