@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ApplicationSchema(BaseModel):
@@ -35,3 +35,13 @@ class ApplicationSchema(BaseModel):
     YEARS_OF_EXPERIENCE: float = Field(ge=0, le=82)
     CREDIT_SCORE: int = Field(ge=300, le=850)
     CREDIT_HISTORY: Literal[0, 1]
+
+    @model_validator(mode="after")
+    def validate_realistic_relationships(self):
+        if self.CREDIT_AMOUNT > self.TOTAL_INCOME * 100:
+            raise ValueError("CREDIT_AMOUNT is outside the supported income range")
+        if self.GOODS_PRICE > self.CREDIT_AMOUNT * 2:
+            raise ValueError("GOODS_PRICE is outside the supported credit range")
+        if self.YEARS_OF_EXPERIENCE > self.AGE - 14:
+            raise ValueError("YEARS_OF_EXPERIENCE is not realistic for the applicant age")
+        return self

@@ -6,9 +6,19 @@ import os
 
 current_dir = os.path.dirname(__file__)
 model_path = os.path.abspath(os.path.join(current_dir, '..', 'data cleaning', 'LGB_CLASSIFIER_MODEL.pkl'))
+calibrated_model_path = os.path.abspath(
+    os.path.join(current_dir, '..', 'data cleaning', 'calibrated_model_bundle.pkl')
+)
 
-model=joblib.load(model_path)
-explainer=shap.TreeExplainer(model)
+artifact_path = calibrated_model_path if os.path.exists(calibrated_model_path) else model_path
+artifact = joblib.load(artifact_path)
+model = artifact.predictor if hasattr(artifact, 'predictor') else artifact
+explanation_model = (
+    artifact.explanation_model if hasattr(artifact, 'explanation_model') else model
+)
+feature_columns = getattr(artifact, 'feature_columns', None)
+category_levels = getattr(artifact, 'category_levels', {})
+explainer=shap.TreeExplainer(explanation_model)
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float:
@@ -48,10 +58,21 @@ def process_application(raw_data)->dict:
         raw_data['YEARS_OF_EXPERIENCE'], raw_data['AGE']
     )
 
+    if feature_columns and 'LOG_INCOME' in feature_columns:
+        ml_feature['LOG_INCOME'] = np.log1p(ml_feature['AMT_INCOME_TOTAL'])
+        ml_feature['LOG_CREDIT'] = np.log1p(ml_feature['AMT_CREDIT'])
+        ml_feature['LOG_GOODS_PRICE'] = np.log1p(ml_feature['AMT_GOODS_PRICE'])
+        ml_feature['LOG_ANNUITY'] = np.log1p(ml_feature['AMT_ANNUITY'])
+
     df=pd.DataFrame([ml_feature])
+    if feature_columns:
+        df = df.reindex(columns=feature_columns)
     categorical_cols = ['CODE_GENDER', 'NAME_EDUCATION_TYPE', 'NAME_FAMILY_STATUS', 'OCCUPATION_TYPE', 'NAME_CONTRACT_TYPE']
     for col in categorical_cols:
-        df[col] = df[col].astype('category')
+        if col in category_levels:
+            df[col] = pd.Categorical(df[col], categories=category_levels[col])
+        else:
+            df[col] = df[col].astype('category')
 
     raw_prob_array = model.predict_proba(df)
     prob_default = raw_prob_array[0][1] 

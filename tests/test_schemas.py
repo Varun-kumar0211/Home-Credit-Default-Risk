@@ -47,6 +47,18 @@ class ApplicationSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             ApplicationSchema(**payload)
 
+    def test_rejects_unrealistic_loan_to_income_ratio(self):
+        payload = {**VALID_APPLICATION, "CREDIT_AMOUNT": 5_000_001}
+
+        with self.assertRaises(ValidationError):
+            ApplicationSchema(**payload)
+
+    def test_rejects_experience_greater_than_working_age(self):
+        payload = {**VALID_APPLICATION, "AGE": 18, "YEARS_OF_EXPERIENCE": 10}
+
+        with self.assertRaises(ValidationError):
+            ApplicationSchema(**payload)
+
 
 if __name__ == "__main__":
     unittest.main()

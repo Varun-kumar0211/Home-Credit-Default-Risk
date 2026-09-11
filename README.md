@@ -38,3 +38,20 @@ In another terminal, start the UI:
 cd Backend
 python app.py
 ```
+
+## Retrain with calibration
+
+Place the original `application_train.csv` in `Data/`, then run from the project root:
+
+```bash
+python "data cleaning/train_calibrated_model.py"
+```
+
+The script creates `data cleaning/calibrated_model_bundle.pkl`. It adds log-transformed
+monetary features, fits transformations only from the training split, calibrates
+probabilities with Platt scaling by default, and reports ROC-AUC and Brier score before
+and after calibration. Use `--method isotonic` when the calibration split is large
+enough for a non-parametric calibrator.
+
+The API automatically uses the calibrated bundle when it exists and otherwise falls
+back to the existing `LGB_CLASSIFIER_MODEL.pkl` artifact.
