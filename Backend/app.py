@@ -88,6 +88,7 @@ footer.app-footer {{
 def _extract_percent(value) -> float:
     """Normalize numeric/percent input to a 0-100 float."""
     is_percent_string = isinstance(value, str) and "%" in value
+    is_score_string = isinstance(value, str) and "/" in value
 
     if isinstance(value, (int, float)):
         number = float(value)
@@ -95,7 +96,7 @@ def _extract_percent(value) -> float:
         match = re.search(r"[-+]?\d*\.?\d+", str(value))
         number = float(match.group()) if match else 0.0
 
-    if 0 <= number <= 1:
+    if not is_percent_string and not is_score_string and 0 <= number <= 1:
         number *= 100
 
     return max(0.0, min(100.0, number))

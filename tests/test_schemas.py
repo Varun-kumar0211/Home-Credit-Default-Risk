@@ -3,6 +3,7 @@ import unittest
 from pydantic import ValidationError
 
 from Backend.Cleaning import _decision_for_probability, _normalize_threshold
+from Backend.app import _extract_percent
 from Backend.schemas import ApplicationSchema
 
 
@@ -92,6 +93,12 @@ class ApplicationSchemaTests(unittest.TestCase):
         decline = _normalize_threshold(20, 0.20)
 
         self.assertEqual(_decision_for_probability(0.93, approve, decline)[0], "Auto Decline")
+
+    def test_dashboard_preserves_explicit_percent_strings(self):
+        self.assertEqual(_extract_percent("0.93%"), 0.93)
+        self.assertEqual(_extract_percent("34.00%"), 34.0)
+        self.assertEqual(_extract_percent("0.34"), 34.0)
+        self.assertEqual(_extract_percent("0.93/100"), 0.93)
 
 
 if __name__ == "__main__":
