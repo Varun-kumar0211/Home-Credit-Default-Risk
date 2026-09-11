@@ -279,7 +279,7 @@ def build_form_payload(gender, qualification, family_status, occupation, contrac
 def score_single_applicant(payload: dict) -> str:
     """POST to the single prediction API and return HTML (or an error)."""
     try:
-        response = requests.post(API_SINGLE_URL, json=payload)
+        response = requests.post(API_SINGLE_URL, json=payload, timeout=30)
     except requests.RequestException as error:
         return render_error("Connection failed", str(error))
 
@@ -298,7 +298,7 @@ def score_csv_batch(csv_file, selected_row_idx: str) -> str:
         return render_error("File parsing error", str(error))
 
     try:
-        response = requests.post(API_BATCH_URL, json=payload)
+        response = requests.post(API_BATCH_URL, json=payload, timeout=30)
     except requests.RequestException as error:
         return render_error("Connection failed", str(error))
 
@@ -323,7 +323,7 @@ def handle_submission(gender, qualification, family_status, occupation, contract
                        experience_years, credit_score, credit_history,
                        csv_file, selected_row_idx):
     """Perform scoring (single or batch) and return rendered HTML."""
-    if csv_file is not None:
+    if csv_file:
         report_html = score_csv_batch(csv_file, selected_row_idx)
     else:
         payload = build_form_payload(
