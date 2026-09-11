@@ -59,6 +59,28 @@ class ApplicationSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             ApplicationSchema(**payload)
 
+    def test_accepts_custom_decision_thresholds(self):
+        application = ApplicationSchema(
+            **{
+                **VALID_APPLICATION,
+                "APPROVE_THRESHOLD": 0.10,
+                "DECLINE_THRESHOLD": 0.25,
+            }
+        )
+
+        self.assertEqual(application.APPROVE_THRESHOLD, 0.10)
+        self.assertEqual(application.DECLINE_THRESHOLD, 0.25)
+
+    def test_rejects_reversed_decision_thresholds(self):
+        payload = {
+            **VALID_APPLICATION,
+            "APPROVE_THRESHOLD": 0.30,
+            "DECLINE_THRESHOLD": 0.20,
+        }
+
+        with self.assertRaises(ValidationError):
+            ApplicationSchema(**payload)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -310,11 +310,15 @@ def score_single_applicant(payload: dict) -> str:
     return render_result_dashboard(response.json())
 
 
-def score_csv_batch(csv_file, selected_row_idx: str) -> str:
+def score_csv_batch(csv_file, selected_row_idx: str,
+                    approve_threshold: float, decline_threshold: float) -> str:
     """Call batch endpoint and render a selected row's dashboard."""
     try:
         applicants_df = pd.read_csv(csv_file).replace({np.nan: None})
         payload = applicants_df.to_dict(orient="records")
+        for applicant in payload:
+            applicant["APPROVE_THRESHOLD"] = approve_threshold / 100
+            applicant["DECLINE_THRESHOLD"] = decline_threshold / 100
     except Exception as error:
         return render_error("File parsing error", str(error))
 
@@ -339,6 +343,16 @@ def show_loading_state():
     return gr.update(visible=False), gr.update(visible=True), render_loading_message()
 
 
+def set_loading_state(csv_file):
+    """Hide inputs and remember which input tab produced the result."""
+    return (
+        gr.update(visible=False),
+        gr.update(visible=True),
+        render_loading_message(),
+        "batch" if csv_file else "form",
+    )
+
+
 def handle_submission(gender, qualification, family_status, occupation, contract_type,
                        income, credit_amount, annuity, goods_price, age,
                        experience_years, credit_score, credit_history,
@@ -346,7 +360,9 @@ def handle_submission(gender, qualification, family_status, occupation, contract
                        csv_file, selected_row_idx):
     """Perform scoring (single or batch) and return rendered HTML."""
     if csv_file:
-        report_html = score_csv_batch(csv_file, selected_row_idx)
+        report_html = score_csv_batch(
+            csv_file, selected_row_idx, approve_threshold, decline_threshold
+        )
     else:
         payload = build_form_payload(
             gender, qualification, family_status, occupation, contract_type,
@@ -377,9 +393,13 @@ def refresh_row_selector(csv_file):
     )
 
 
-def go_back_to_input():
+def go_back_to_input(input_source):
     """Switch the UI back to the input page."""
-    return gr.update(visible=True), gr.update(visible=False)
+    return (
+        gr.update(visible=True),
+        gr.update(visible=False),
+        gr.update(selected=input_source),
+    )
 
 
 with gr.Blocks(title="System Risk Evaluation Desk") as demo:
@@ -391,43 +411,67 @@ with gr.Blocks(title="System Risk Evaluation Desk") as demo:
     )
 
     with gr.Column(visible=True) as input_page:
-        with gr.Tab("📝 Form input"):
-            with gr.Group():
-                gr.Markdown("#### Personal & employment details")
-                with gr.Row():
-                    gender = gr.Dropdown(GENDER_OPTIONS, label="Gender", value="M")
-                    qualification = gr.Dropdown(
-                        QUALIFICATION_OPTIONS, label="Qualification", value="Higher education"
-                    )
-                    family_status = gr.Dropdown(
-                        FAMILY_STATUS_OPTIONS, label="Family status", value="Single / not married"
-                    )
-                with gr.Row():
-                    occupation = gr.Dropdown(OCCUPATION_OPTIONS, label="Occupation", value="Core staff")
-                    age = gr.Number(label="Age (years)", value=30)
-                    experience_years = gr.Number(label="Years of experience", value=5)
+        with gr.Tabs() as input_tabs:
+            with gr.Tab("📝 Form input", id="form"):
+                with gr.Group():
+                    gr.Markdown("#### Personal & employment details")
+                    with gr.Row():
+                        gender = gr.Dropdown(GENDER_OPTIONS, label="Gender", value="M")
+                        qualification = gr.Dropdown(
+                            QUALIFICATION_OPTIONS, label="Qualification", value="Higher education"
+                        )
+                        family_status = gr.Dropdown(
+                            FAMILY_STATUS_OPTIONS, label="Family status", value="Single / not married"
+                        )
+                    with gr.Row():
+                        occupation = gr.Dropdown(OCCUPATION_OPTIONS, label="Occupation", value="Core staff")
+                        age = gr.Number(label="Age (years)", value=30)
+                        experience_years = gr.Number(label="Years of experience", value=5)
 
-            with gr.Group():
-                gr.Markdown("#### Loan details")
-                with gr.Row():
-                    contract_type = gr.Dropdown(
-                        CONTRACT_TYPE_OPTIONS, label="Contract type", value="Cash loans"
-                    )
-                    credit_amount = gr.Number(label="Credit amount requested", value=150000)
-                    goods_price = gr.Number(label="Goods price", value=150000)
-                with gr.Row():
-                    income = gr.Number(label="Total income", value=50000)
-                    annuity = gr.Number(label="Annual loan payment (annuity)", value=12000)
+                with gr.Group():
+                    gr.Markdown("#### Loan details")
+                    with gr.Row():
+                        contract_type = gr.Dropdown(
+                            CONTRACT_TYPE_OPTIONS, label="Contract type", value="Cash loans"
+                        )
+                        credit_amount = gr.Number(label="Credit amount requested", value=150000)
+                        goods_price = gr.Number(label="Goods price", value=150000)
+                    with gr.Row():
+                        income = gr.Number(label="Total income", value=50000)
+                        annuity = gr.Number(label="Annual loan payment (annuity)", value=12000)
 
-            with gr.Group():
-                gr.Markdown("#### Credit profile")
-                with gr.Row():
-                    credit_score = gr.Number(label="Internal credit score (300–850)", value=710)
-                    credit_history = gr.Dropdown(
-                        CREDIT_HISTORY_OPTIONS,
-                        label="Prior default on record? (0 = No, 1 = Yes)",
-                        value=0,
-                    )
+                with gr.Group():
+                    gr.Markdown("#### Credit profile")
+                    with gr.Row():
+                        credit_score = gr.Number(label="Internal credit score (300–850)", value=710)
+                        credit_history = gr.Dropdown(
+                            CREDIT_HISTORY_OPTIONS,
+                            label="Prior default on record? (0 = No, 1 = Yes)",
+                            value=0,
+                        )
+
+            with gr.Tab("📊 CSV batch upload", id="batch"):
+                gr.Markdown(
+                    "Upload a CSV with one row per applicant. "
+                    "After upload, pick which row to inspect below."
+                )
+                file_uploader = gr.File(
+                    label="Evaluation matrix dataset (.csv)",
+                    file_types=[".csv"],
+                    elem_classes="upload-zone",
+                )
+                csv_preview = gr.Markdown(visible=False)
+                row_selector = gr.Dropdown(choices=[], label="Row to inspect", visible=False)
+
+                file_uploader.change(
+                    fn=refresh_row_selector,
+                    inputs=[file_uploader],
+                    outputs=[row_selector, csv_preview],
+                )
+
+            with gr.Tab("⚙ Settings", id="settings"):
+                gr.Markdown("#### Decision thresholds")
+                gr.Markdown("These settings apply to both manual and batch assessments.")
                 with gr.Row():
                     approve_threshold = gr.Number(
                         label="Auto-approve up to default risk (%)",
@@ -444,25 +488,6 @@ with gr.Blocks(title="System Risk Evaluation Desk") as demo:
                         precision=2,
                     )
 
-        with gr.Tab("📊 CSV batch upload"):
-            gr.Markdown(
-                "Upload a CSV with one row per applicant. "
-                "After upload, pick which row to inspect below."
-            )
-            file_uploader = gr.File(
-                label="Evaluation matrix dataset (.csv)",
-                file_types=[".csv"],
-                elem_classes="upload-zone",
-            )
-            csv_preview = gr.Markdown(visible=False)
-            row_selector = gr.Dropdown(choices=[], label="Row to inspect", visible=False)
-
-            file_uploader.change(
-                fn=refresh_row_selector,
-                inputs=[file_uploader],
-                outputs=[row_selector, csv_preview],
-            )
-
         submit_action = gr.Button("🚀 Run risk assessment", variant="primary", size="lg")
 
     with gr.Column(visible=False) as output_page:
@@ -471,10 +496,12 @@ with gr.Blocks(title="System Risk Evaluation Desk") as demo:
 
     gr.HTML('<footer class="app-footer">Internal decision-support tool · not a final credit decision</footer>')
 
+    input_source = gr.State("form")
+
     submit_action.click(
-        fn=show_loading_state,
-        inputs=[],
-        outputs=[input_page, output_page, result_box],
+        fn=set_loading_state,
+        inputs=[file_uploader],
+        outputs=[input_page, output_page, result_box, input_source],
     ).then(
         fn=handle_submission,
         inputs=[
@@ -487,7 +514,11 @@ with gr.Blocks(title="System Risk Evaluation Desk") as demo:
         outputs=[result_box],
     )
 
-    back_action.click(fn=go_back_to_input, inputs=[], outputs=[input_page, output_page])
+    back_action.click(
+        fn=go_back_to_input,
+        inputs=[input_source],
+        outputs=[input_page, output_page, input_tabs],
+    )
 
 
 def wait_for_api(url: str, timeout: int = 30, interval: float = 1.0) -> None:

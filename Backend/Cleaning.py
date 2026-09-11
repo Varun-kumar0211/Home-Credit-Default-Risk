@@ -12,9 +12,11 @@ calibrated_model_path = os.path.abspath(
 
 artifact_path = calibrated_model_path if os.path.exists(calibrated_model_path) else model_path
 artifact = joblib.load(artifact_path)
-model = artifact.predictor if hasattr(artifact, 'predictor') else artifact
+prediction_model = artifact.predictor if hasattr(artifact, 'predictor') else artifact
 explanation_model = (
-    artifact.explanation_model if hasattr(artifact, 'explanation_model') else model
+    artifact.explanation_model
+    if hasattr(artifact, 'explanation_model')
+    else prediction_model
 )
 feature_columns = getattr(artifact, 'feature_columns', None)
 category_levels = getattr(artifact, 'category_levels', {})
@@ -90,7 +92,7 @@ def process_application(raw_data)->dict:
         else:
             df[col] = df[col].astype('category')
 
-    raw_prob_array = model.predict_proba(df)
+    raw_prob_array = prediction_model.predict_proba(df)
     prob_default = float(np.clip(raw_prob_array[0][1], 0.0, 1.0))
     default_prob_percentage = prob_default * 100
     
