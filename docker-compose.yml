@@ -1,16 +1,16 @@
 services:
   api:
     build: .
-    working_dir: /app/Backend
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    working_dir: /app
+    command: uvicorn Backend.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     restart: unless-stopped
 
   ui:
     build: .
-    working_dir: /app/Backend
-    command: python app.py
+    working_dir: /app
+    command: python Backend/app.py
     ports:
       - "7860:7860"
     environment:
