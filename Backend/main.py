@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import logging
+from datetime import datetime, timezone
 from typing import Annotated, List
 
 from fastapi import FastAPI, Body, HTTPException, Request
@@ -21,8 +22,18 @@ from schemas import ApplicationSchema
 from Cleaning import model_source, process_application
 
 logger = logging.getLogger(__name__)
+started_at = datetime.now(timezone.utc).isoformat()
 
 app = FastAPI(title="Credit Scoring API Engine")
+
+
+@app.middleware("http")
+async def disable_response_caching(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.get("/")
@@ -82,4 +93,5 @@ def health():
     return {
         "status": "ok",
         "model": model_source,
+        "started_at": started_at,
     }
