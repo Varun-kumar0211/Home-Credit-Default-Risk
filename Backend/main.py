@@ -5,7 +5,9 @@ from pathlib import Path
 import logging
 from typing import Annotated, List
 
-from fastapi import FastAPI, Body, HTTPException
+from fastapi import FastAPI, Body, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 # Ensure the backend directory is on sys.path for module imports
 backend_dir = Path(__file__).resolve().parent
@@ -21,6 +23,18 @@ from Cleaning import process_application
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Credit Scoring API Engine")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "validation_error",
+            "message": "Input values do not match the supported applicant schema.",
+            "fields": exc.errors(),
+        },
+    )
 
 
 @app.post("/predict")

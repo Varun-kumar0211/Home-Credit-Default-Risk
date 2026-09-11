@@ -255,9 +255,28 @@ def render_error(title: str, detail: str) -> str:
     """)
 
 
+def render_api_error(response) -> str:
+    """Render structured API validation or engine errors for the UI."""
+    try:
+        body = response.json()
+    except ValueError:
+        return render_error("Engine error", response.text)
+
+    if body.get("error") == "validation_error":
+        messages = []
+        for field_error in body.get("fields", []):
+            location = ".".join(str(item) for item in field_error.get("loc", []))
+            messages.append(f"{location}: {field_error.get('msg', 'invalid value')}")
+        detail = "<br/>".join(messages) or body.get("message", "Invalid input")
+        return render_error("Input validation failed", detail)
+
+    return render_error("Engine error", body.get("detail", body.get("message", response.text)))
+
+
 def build_form_payload(gender, qualification, family_status, occupation, contract_type,
                         income, credit_amount, annuity, goods_price, age,
-                        experience_years, credit_score, credit_history) -> dict:
+                        experience_years, credit_score, credit_history,
+                        approve_threshold, decline_threshold) -> dict:
     """Create the JSON payload for the single-applicant endpoint."""
     return {
         "GENDER": gender,
@@ -273,6 +292,8 @@ def build_form_payload(gender, qualification, family_status, occupation, contrac
         "YEARS_OF_EXPERIENCE": experience_years,
         "CREDIT_SCORE": credit_score,
         "CREDIT_HISTORY": credit_history,
+        "APPROVE_THRESHOLD": approve_threshold / 100,
+        "DECLINE_THRESHOLD": decline_threshold / 100,
     }
 
 
@@ -284,7 +305,7 @@ def score_single_applicant(payload: dict) -> str:
         return render_error("Connection failed", str(error))
 
     if response.status_code != 200:
-        return render_error("Engine error", response.text)
+        return render_api_error(response)
 
     return render_result_dashboard(response.json())
 
@@ -303,7 +324,7 @@ def score_csv_batch(csv_file, selected_row_idx: str) -> str:
         return render_error("Connection failed", str(error))
 
     if response.status_code != 200:
-        return render_error("Engine error", response.text)
+        return render_api_error(response)
 
     batch_results = response.json()
     row_index = int(selected_row_idx) if selected_row_idx else 0
@@ -321,6 +342,7 @@ def show_loading_state():
 def handle_submission(gender, qualification, family_status, occupation, contract_type,
                        income, credit_amount, annuity, goods_price, age,
                        experience_years, credit_score, credit_history,
+                       approve_threshold, decline_threshold,
                        csv_file, selected_row_idx):
     """Perform scoring (single or batch) and return rendered HTML."""
     if csv_file:
@@ -330,6 +352,7 @@ def handle_submission(gender, qualification, family_status, occupation, contract
             gender, qualification, family_status, occupation, contract_type,
             income, credit_amount, annuity, goods_price, age,
             experience_years, credit_score, credit_history,
+            approve_threshold, decline_threshold,
         )
         report_html = score_single_applicant(payload)
 
@@ -405,6 +428,21 @@ with gr.Blocks(title="System Risk Evaluation Desk") as demo:
                         label="Prior default on record? (0 = No, 1 = Yes)",
                         value=0,
                     )
+                with gr.Row():
+                    approve_threshold = gr.Number(
+                        label="Auto-approve up to default risk (%)",
+                        value=8,
+                        minimum=0,
+                        maximum=99,
+                        precision=2,
+                    )
+                    decline_threshold = gr.Number(
+                        label="Auto-decline from default risk (%)",
+                        value=20,
+                        minimum=1,
+                        maximum=100,
+                        precision=2,
+                    )
 
         with gr.Tab("📊 CSV batch upload"):
             gr.Markdown(
@@ -443,6 +481,7 @@ with gr.Blocks(title="System Risk Evaluation Desk") as demo:
             gender, qualification, family_status, occupation, contract_type,
             income, credit_amount, annuity, goods_price, age,
             experience_years, credit_score, credit_history,
+            approve_threshold, decline_threshold,
             file_uploader, row_selector,
         ],
         outputs=[result_box],

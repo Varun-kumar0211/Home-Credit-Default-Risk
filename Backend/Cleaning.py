@@ -18,6 +18,9 @@ explanation_model = (
 )
 feature_columns = getattr(artifact, 'feature_columns', None)
 category_levels = getattr(artifact, 'category_levels', {})
+clip_bounds = getattr(artifact, 'clip_bounds', {})
+approve_threshold = getattr(artifact, 'approve_threshold', 0.08)
+decline_threshold = getattr(artifact, 'decline_threshold', 0.20)
 explainer=shap.TreeExplainer(explanation_model)
 
 
@@ -28,6 +31,14 @@ def _safe_ratio(numerator: float, denominator: float) -> float:
 
 
 def process_application(raw_data)->dict:
+    request_approve_threshold = raw_data.get('APPROVE_THRESHOLD')
+    request_decline_threshold = raw_data.get('DECLINE_THRESHOLD')
+    request_approve_threshold = (
+        approve_threshold if request_approve_threshold is None else request_approve_threshold
+    )
+    request_decline_threshold = (
+        decline_threshold if request_decline_threshold is None else request_decline_threshold
+    )
     ml_feature={}
     ml_feature['CODE_GENDER']=raw_data['GENDER']
     ml_feature['NAME_EDUCATION_TYPE']=raw_data['QUALIFICATION']
@@ -67,16 +78,21 @@ def process_application(raw_data)->dict:
     df=pd.DataFrame([ml_feature])
     if feature_columns:
         df = df.reindex(columns=feature_columns)
+    for column, bounds in clip_bounds.items():
+        if column in df:
+            df[column] = df[column].clip(lower=bounds[0], upper=bounds[1])
     categorical_cols = ['CODE_GENDER', 'NAME_EDUCATION_TYPE', 'NAME_FAMILY_STATUS', 'OCCUPATION_TYPE', 'NAME_CONTRACT_TYPE']
     for col in categorical_cols:
+        if col not in df:
+            continue
         if col in category_levels:
             df[col] = pd.Categorical(df[col], categories=category_levels[col])
         else:
             df[col] = df[col].astype('category')
 
     raw_prob_array = model.predict_proba(df)
-    prob_default = raw_prob_array[0][1] 
-    default_prob_percentage = round(prob_default * 100)
+    prob_default = float(np.clip(raw_prob_array[0][1], 0.0, 1.0))
+    default_prob_percentage = prob_default * 100
     
     shap_values=explainer(df)
     Person_shap_values=shap_values.values
@@ -98,22 +114,20 @@ def process_application(raw_data)->dict:
     strength = [(feat, round(val, 4)) for feat, val in shap_impacts[:3]]
     red_flag = [(feat, round(val, 4)) for feat, val in shap_impacts[-3:]]
 
-    auto_approve_threshold=0.08
-    review_threshold=0.15
-
-    
+    # Keep scores continuous; rounding before subtraction made tiny risks look
+    # identical to a perfect 100/100 trust score.
     risk_score = default_prob_percentage
-    trust_score = 100 - default_prob_percentage
+    trust_score = 100.0 - default_prob_percentage
 
     action=""
     tier=""
     interest_rate=""
 
-    if prob_default <= auto_approve_threshold:
+    if prob_default <= request_approve_threshold:
         action="Auto Approve"
         tier="Tier A"
         interest_rate="5.5%"
-    elif prob_default <= review_threshold:
+    elif prob_default < request_decline_threshold:
         action="Manual Review Required"
         tier="Tier B"
         interest_rate="10.5%"
@@ -122,12 +136,7 @@ def process_application(raw_data)->dict:
         tier="Tier C"
         interest_rate="N/A"
 
-    confidence=0
-
-    if prob_default < review_threshold:
-        confidence=((review_threshold-prob_default)/review_threshold)*100
-    else:
-        confidence=((prob_default-review_threshold)/(1-review_threshold))*100
+    confidence = max(prob_default, 1.0 - prob_default) * 100
     
     monthly_income = ml_feature['AMT_INCOME_TOTAL']/12
     max_allowed_payment=monthly_income*0.36
@@ -148,9 +157,9 @@ def process_application(raw_data)->dict:
     return {
         "Final Decision":action,
         "Risk Tier":tier,
-        "Probability of default":f"{prob_default:,.2f}%",
-        "Trust Score":f"{trust_score}/100",
-        "Risk Score":f"{risk_score}/100",
+        "Probability of default":f"{default_prob_percentage:,.2f}%",
+        "Trust Score":f"{trust_score:.2f}/100",
+        "Risk Score":f"{risk_score:.2f}/100",
         "Model confidence":f"{round(confidence)}%",
         "Recommended Rate":interest_rate,
         "Loan Amount Decision":recommended_action,

@@ -20,8 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from Backend.model_bundle import CalibratedModelBundle
 
 CATEGORICAL_COLUMNS = [
-    "CODE_GENDER", "NAME_EDUCATION_TYPE", "NAME_FAMILY_STATUS",
-    "OCCUPATION_TYPE", "NAME_CONTRACT_TYPE",
+    "NAME_EDUCATION_TYPE", "OCCUPATION_TYPE", "NAME_CONTRACT_TYPE",
 ]
 NUMERIC_COLUMNS = [
     "AMT_INCOME_TOTAL", "AMT_CREDIT", "AMT_ANNUITY", "AMT_GOODS_PRICE",
@@ -31,6 +30,7 @@ NUMERIC_COLUMNS = [
 ]
 LOG_COLUMNS = ["LOG_INCOME", "LOG_CREDIT", "LOG_GOODS_PRICE", "LOG_ANNUITY"]
 FEATURE_COLUMNS = CATEGORICAL_COLUMNS + NUMERIC_COLUMNS + LOG_COLUMNS
+CLIPPED_NUMERIC_COLUMNS = NUMERIC_COLUMNS + LOG_COLUMNS
 
 
 def build_features(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
@@ -105,12 +105,35 @@ def make_calibrator(model, method):
         return CalibratedClassifierCV(base_estimator=model, method=method, cv="prefit")
 
 
+def fit_clip_bounds(features: pd.DataFrame) -> dict:
+    """Fit robust training-only bounds for numeric inference features."""
+    return {
+        column: (
+            float(features[column].quantile(0.005)),
+            float(features[column].quantile(0.995)),
+        )
+        for column in CLIPPED_NUMERIC_COLUMNS
+    }
+
+
+def apply_clip_bounds(features: pd.DataFrame, bounds: dict) -> pd.DataFrame:
+    clipped = features.copy()
+    for column, (lower, upper) in bounds.items():
+        clipped[column] = clipped[column].clip(lower=lower, upper=upper)
+    return clipped
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, default=Path("Data/application_train.csv"))
     parser.add_argument("--output", type=Path, default=Path("data cleaning/calibrated_model_bundle.pkl"))
     parser.add_argument("--method", choices=("sigmoid", "isotonic"), default="sigmoid")
+    parser.add_argument("--approve-threshold", type=float, default=0.08)
+    parser.add_argument("--decline-threshold", type=float, default=0.20)
     args = parser.parse_args()
+
+    if not 0 < args.approve_threshold < args.decline_threshold < 1:
+        parser.error("thresholds must satisfy 0 < approve < decline < 1")
 
     data = pd.read_csv(args.input)
     features, target = build_features(data)
@@ -120,6 +143,10 @@ def main():
     x_calibration, x_test, y_calibration, y_test = train_test_split(
         x_remaining, y_remaining, test_size=0.50, stratify=y_remaining, random_state=42
     )
+    clip_bounds = fit_clip_bounds(x_train)
+    x_train = apply_clip_bounds(x_train, clip_bounds)
+    x_calibration = apply_clip_bounds(x_calibration, clip_bounds)
+    x_test = apply_clip_bounds(x_test, clip_bounds)
 
     model = lgb.LGBMClassifier(
         objective="binary", n_estimators=250, learning_rate=0.05,
@@ -151,7 +178,10 @@ def main():
         for column in CATEGORICAL_COLUMNS
     }
     joblib.dump(
-        CalibratedModelBundle(calibrator, model, FEATURE_COLUMNS, category_levels),
+        CalibratedModelBundle(
+            calibrator, model, FEATURE_COLUMNS, category_levels, clip_bounds,
+            args.approve_threshold, args.decline_threshold,
+        ),
         args.output,
     )
     print(f"saved calibrated model: {args.output}")

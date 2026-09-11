@@ -35,6 +35,8 @@ class ApplicationSchema(BaseModel):
     YEARS_OF_EXPERIENCE: float = Field(ge=0, le=82)
     CREDIT_SCORE: int = Field(ge=300, le=850)
     CREDIT_HISTORY: Literal[0, 1]
+    APPROVE_THRESHOLD: float | None = Field(default=None, ge=0, lt=1)
+    DECLINE_THRESHOLD: float | None = Field(default=None, gt=0, le=1)
 
     @model_validator(mode="after")
     def validate_realistic_relationships(self):
@@ -44,4 +46,10 @@ class ApplicationSchema(BaseModel):
             raise ValueError("GOODS_PRICE is outside the supported credit range")
         if self.YEARS_OF_EXPERIENCE > self.AGE - 14:
             raise ValueError("YEARS_OF_EXPERIENCE is not realistic for the applicant age")
+        if (
+            self.APPROVE_THRESHOLD is not None
+            and self.DECLINE_THRESHOLD is not None
+            and self.APPROVE_THRESHOLD >= self.DECLINE_THRESHOLD
+        ):
+            raise ValueError("APPROVE_THRESHOLD must be lower than DECLINE_THRESHOLD")
         return self
