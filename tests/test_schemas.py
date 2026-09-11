@@ -1,0 +1,52 @@
+import unittest
+
+from pydantic import ValidationError
+
+from Backend.schemas import ApplicationSchema
+
+
+VALID_APPLICATION = {
+    "GENDER": "M",
+    "QUALIFICATION": "Higher education",
+    "FAMILY_STATUS": "Single / not married",
+    "OCCUPATION": "Core staff",
+    "CONTRACT_TYPE": "Cash loans",
+    "TOTAL_INCOME": 50000,
+    "CREDIT_AMOUNT": 150000,
+    "ANNUAL_LOAN_PAYMENT": 12000,
+    "GOODS_PRICE": 150000,
+    "AGE": 30,
+    "YEARS_OF_EXPERIENCE": 5,
+    "CREDIT_SCORE": 710,
+    "CREDIT_HISTORY": 0,
+}
+
+
+class ApplicationSchemaTests(unittest.TestCase):
+    def test_accepts_form_payload(self):
+        application = ApplicationSchema(**VALID_APPLICATION)
+
+        self.assertEqual(application.GENDER, "M")
+        self.assertEqual(application.CREDIT_HISTORY, 0)
+
+    def test_rejects_invalid_financial_values(self):
+        payload = {**VALID_APPLICATION, "TOTAL_INCOME": 0}
+
+        with self.assertRaises(ValidationError):
+            ApplicationSchema(**payload)
+
+    def test_rejects_invalid_categories(self):
+        payload = {**VALID_APPLICATION, "CONTRACT_TYPE": "Unknown loan"}
+
+        with self.assertRaises(ValidationError):
+            ApplicationSchema(**payload)
+
+    def test_rejects_unknown_fields(self):
+        payload = {**VALID_APPLICATION, "unexpected": "value"}
+
+        with self.assertRaises(ValidationError):
+            ApplicationSchema(**payload)
+
+
+if __name__ == "__main__":
+    unittest.main()

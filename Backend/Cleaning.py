@@ -10,6 +10,13 @@ model_path = os.path.abspath(os.path.join(current_dir, '..', 'data cleaning', 'L
 model=joblib.load(model_path)
 explainer=shap.TreeExplainer(model)
 
+
+def _safe_ratio(numerator: float, denominator: float) -> float:
+    if denominator <= 0 or not np.isfinite(denominator):
+        return 0.0
+    return numerator / denominator
+
+
 def process_application(raw_data)->dict:
     ml_feature={}
     ml_feature['CODE_GENDER']=raw_data['GENDER']
@@ -25,11 +32,21 @@ def process_application(raw_data)->dict:
     ml_feature['YEARS_EMPLOYED']=raw_data['YEARS_OF_EXPERIENCE']
     ml_feature['CREDIT_SCORE']=raw_data['CREDIT_SCORE'] 
     ml_feature['NO_CREDIT_HISTORY']=raw_data['CREDIT_HISTORY']    
-    ml_feature['CREDIT_TO_INCOME_RATIO']=raw_data['CREDIT_AMOUNT']/raw_data['TOTAL_INCOME']
-    ml_feature['ANNUITY_TO_INCOME_RATIO']=raw_data['ANNUAL_LOAN_PAYMENT']/raw_data['TOTAL_INCOME']
-    ml_feature['CREDIT_TERM']=raw_data['CREDIT_AMOUNT']/raw_data['ANNUAL_LOAN_PAYMENT']
-    ml_feature['GOODS_TO_CREDIT_RATIO']=raw_data['GOODS_PRICE']/raw_data['CREDIT_AMOUNT']
-    ml_feature['EMPLOYED_TO_BIRTH_RATIO']=raw_data['YEARS_OF_EXPERIENCE']/raw_data['AGE']
+    ml_feature['CREDIT_TO_INCOME_RATIO']=_safe_ratio(
+        raw_data['CREDIT_AMOUNT'], raw_data['TOTAL_INCOME']
+    )
+    ml_feature['ANNUITY_TO_INCOME_RATIO']=_safe_ratio(
+        raw_data['ANNUAL_LOAN_PAYMENT'], raw_data['TOTAL_INCOME']
+    )
+    ml_feature['CREDIT_TERM']=_safe_ratio(
+        raw_data['CREDIT_AMOUNT'], raw_data['ANNUAL_LOAN_PAYMENT']
+    )
+    ml_feature['GOODS_TO_CREDIT_RATIO']=_safe_ratio(
+        raw_data['GOODS_PRICE'], raw_data['CREDIT_AMOUNT']
+    )
+    ml_feature['EMPLOYED_TO_BIRTH_RATIO']=_safe_ratio(
+        raw_data['YEARS_OF_EXPERIENCE'], raw_data['AGE']
+    )
 
     df=pd.DataFrame([ml_feature])
     categorical_cols = ['CODE_GENDER', 'NAME_EDUCATION_TYPE', 'NAME_FAMILY_STATUS', 'OCCUPATION_TYPE', 'NAME_CONTRACT_TYPE']
