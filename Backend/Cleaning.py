@@ -25,6 +25,18 @@ clip_bounds = getattr(artifact, 'clip_bounds', {})
 approve_threshold = getattr(artifact, 'approve_threshold', 0.08)
 decline_threshold = getattr(artifact, 'decline_threshold', 0.20)
 explainer=shap.TreeExplainer(explanation_model)
+FEATURE_LABELS = {
+    'CREDIT_SCORE': 'Credit score',
+    'AMT_CREDIT': 'Requested credit amount',
+    'AMT_INCOME_TOTAL': 'Total income',
+    'AMT_ANNUITY': 'Annual loan payment',
+    'CREDIT_TERM': 'Estimated credit term',
+    'CREDIT_TO_INCOME_RATIO': 'Credit-to-income ratio',
+    'ANNUITY_TO_INCOME_RATIO': 'Payment-to-income ratio',
+    'EMPLOYED_TO_BIRTH_RATIO': 'Employment-to-age ratio',
+    'NAME_EDUCATION_TYPE': 'Education level',
+    'NAME_CONTRACT_TYPE': 'Contract type',
+}
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float:
@@ -135,8 +147,22 @@ def process_application(raw_data)->dict:
     shap_impacts=list(zip(df.columns,Person_shap_values))
     shap_impacts.sort(key=lambda x:x[1])
 
-    strength = [(feat, round(val, 4)) for feat, val in shap_impacts[:3]]
-    red_flag = [(feat, round(val, 4)) for feat, val in shap_impacts[-3:]]
+    negative_impacts = shap_impacts[:3]
+    positive_impacts = list(reversed(shap_impacts[-3:]))
+    strength = [(feat, round(float(val), 4)) for feat, val in negative_impacts]
+    red_flag = [(feat, round(float(val), 4)) for feat, val in positive_impacts]
+
+    def explanation(items, direction):
+        return [
+            {
+                "feature": feat,
+                "label": FEATURE_LABELS.get(feat, feat.replace("_", " ").title()),
+                "value": ml_feature.get(feat),
+                "impact": round(float(val), 4),
+                "direction": direction,
+            }
+            for feat, val in items
+        ]
 
     # Keep scores continuous; rounding before subtraction made tiny risks look
     # identical to a perfect 100/100 trust score.
@@ -178,8 +204,32 @@ def process_application(raw_data)->dict:
         "Loan Amount Decision":recommended_action,
         "Strength":strength,
         "Red Flag":red_flag
+        ,
+        "decision": action,
+        "risk_tier": tier,
+        "default_probability": prob_default,
+        "risk_score": risk_score,
+        "trust_score": trust_score,
+        "confidence": max(prob_default, 1.0 - prob_default),
+        "approve_threshold": request_approve_threshold,
+        "decline_threshold": request_decline_threshold,
+        "recommended_rate": interest_rate,
+        "loan_amount_decision": recommended_action,
+        "explanations": {
+            "positive": explanation(positive_impacts, "increases_risk"),
+            "negative": explanation(negative_impacts, "reduces_risk"),
+        },
+        "shap_values": [
+            {
+                "feature": feat,
+                "label": FEATURE_LABELS.get(feat, feat.replace("_", " ").title()),
+                "value": ml_feature.get(feat),
+                "impact": round(float(val), 4),
+                "direction": "increases_risk" if val > 0 else "reduces_risk",
+            }
+            for feat, val in shap_impacts
+        ],
 
 
 
     }
-

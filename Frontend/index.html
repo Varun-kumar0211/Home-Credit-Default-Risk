@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Credit Risk Intelligence</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">◆</span><div><strong>Credit Risk</strong><small>INTELLIGENCE DESK</small></div></div>
+    <div id="sessionActions" class="session-actions"><span class="model-status"><i></i> Calibrated model online</span><button id="logout" class="secondary">Logout</button></div>
+  </header>
+  <main class="shell">
+    <section id="loginPanel" class="login-panel">
+      <div><p class="eyebrow">SECURE WORKSPACE</p><h2>Sign in to continue</h2><p class="muted">Use your analyst credentials to access assessments and applicant data.</p><p id="loginMessage" class="bad"></p></div>
+      <form id="loginForm" class="login-form"><input id="username" placeholder="Username" autocomplete="username" required><input id="password" type="password" placeholder="Password" autocomplete="current-password" required><button class="primary" type="submit">Sign in →</button></form>
+    </section>
+    <div id="workspace" class="hidden app-shell">
+      <aside class="sidebar">
+        <p class="eyebrow">WORKSPACE</p>
+        <button data-page="manualPage">Manual assessment</button>
+        <button id="defaultLink" data-page="dashboardPage">Default dataset</button>
+        <button data-page="uploadPage">Upload CSV</button>
+      </aside>
+      <section class="content">
+        <div id="message" class="message hidden"></div>
+        <section id="manualPage" class="page">
+          <div class="section-heading"><div><p class="eyebrow">INDIVIDUAL REVIEW</p><h1>Manual assessment</h1><p class="muted">Validate one applicant and receive a model decision with SHAP explanations.</p></div></div>
+          <form id="manualForm" class="form-card">
+            <h3>Applicant profile</h3><div class="form-grid">
+              <label>Gender<input name="GENDER" value="M" required></label><label>Qualification<input name="QUALIFICATION" value="Higher education" required></label><label>Family status<input name="FAMILY_STATUS" value="Single / not married" required></label><label>Occupation<input name="OCCUPATION" value="Core staff" required></label><label>Contract type<input name="CONTRACT_TYPE" value="Cash loans" required></label>
+              <label>Age (years)<input name="AGE" type="number" value="30" required></label><label>Years of experience<input name="YEARS_OF_EXPERIENCE" type="number" step=".1" value="5" required></label><label>Credit score<input name="CREDIT_SCORE" type="number" value="710" required></label><label>Credit history (0/1)<input name="CREDIT_HISTORY" type="number" min="0" max="1" value="0" required></label>
+            </div>
+            <h3>Financial profile</h3><div class="form-grid"><label>Total income<input name="TOTAL_INCOME" type="number" value="50000" required></label><label>Credit amount requested<input name="CREDIT_AMOUNT" type="number" value="150000" required></label><label>Annual loan payment<input name="ANNUAL_LOAN_PAYMENT" type="number" value="12000" required></label><label>Goods price<input name="GOODS_PRICE" type="number" value="150000" required></label></div>
+            <button class="primary form-submit" type="submit">Run manual assessment →</button>
+          </form>
+        </section>
+        <section id="dashboardPage" class="page hidden">
+          <div class="section-heading"><div><p class="eyebrow">PORTFOLIO ANALYSIS</p><h1 id="datasetTitle">Portfolio analysis</h1></div></div>
+          <div id="metrics" class="metrics"></div>
+          <div class="analysis-grid">
+            <article class="panel wide"><div class="panel-heading"><div><p class="eyebrow">RISK OVERVIEW</p><h3>Portfolio risk mix</h3></div><span class="subtle">Thresholds: &lt;8% approve · 8–20% review · ≥20% decline</span></div><div id="riskOverview" class="risk-overview"></div></article>
+            <article class="panel"><div class="panel-heading"><h3>Data health</h3><span id="healthSummary"></span></div><div id="qualityProfile"></div></article>
+            <article class="panel"><h3>Numeric profile</h3><div id="numericProfile"></div></article>
+            <article class="panel wide"><div class="panel-heading"><div><h3>Risk analysis</h3><p class="muted">Average predicted default risk across data-driven ranges.</p></div></div><div id="riskFeatureProfile" class="risk-feature-grid"></div></article>
+            <article class="panel"><h3>Occupation risk</h3><div id="targetProfile"></div></article>
+            <article class="panel"><h3>Segment analysis</h3><div id="segmentProfile"></div></article>
+            <article class="panel wide"><div class="panel-heading"><div><h3>Financial correlation</h3><p class="muted">Correlation indicates statistical association, not causation.</p></div></div><div id="correlationProfile"></div></article>
+            <article class="panel wide"><div class="panel-heading"><div><h3>Global SHAP drivers</h3><p class="muted">SHAP explains how features influenced the model prediction; it does not establish causality.</p></div></div><div id="shapProfile"></div></article>
+            <article class="panel wide"><h3>Category distribution</h3><div id="categoryProfile" class="category-grid"></div></article>
+          </div>
+          <div class="section-heading applicants-heading"><div><p class="eyebrow">APPLICANTS</p><h2>Review applicants</h2><p class="muted">Filter the portfolio, then run an assessment for any valid applicant.</p></div></div>
+          <div class="applicant-tools"><input id="applicantSearch" class="search" placeholder="Search applicant ID"><select id="riskFilter"><option value="">All risk</option><option value="Low Risk">Low risk</option><option value="Manual Review">Review</option><option value="High Risk">High risk</option></select><select id="occupationFilter"><option value="">All occupations</option></select><select id="contractFilter"><option value="">All contract types</option></select><select id="sortApplicants"><option value="risk-desc">Highest risk</option><option value="risk-asc">Lowest risk</option><option value="score-desc">Credit score</option><option value="amount-desc">Credit amount</option></select></div>
+          <div class="table-wrap"><table><thead><tr><th>Applicant ID</th><th>Occupation</th><th>Contract type</th><th>Credit score</th><th>Credit amount</th><th>Default risk</th><th>Risk tier</th><th>Action</th></tr></thead><tbody id="applicantRows"></tbody></table></div>
+        </section>
+        <section id="uploadPage" class="page hidden">
+          <div class="section-heading"><div><p class="eyebrow">DATA IMPORT</p><h1>Analyze a CSV portfolio</h1><p class="muted">Rows are validated before storage. Invalid rows remain visible but cannot be assessed.</p></div></div>
+          <div class="upload-card"><label class="drop-zone"><input id="csvFile" type="file" accept=".csv"><span class="upload-icon">↑</span><strong>Choose a CSV file</strong><small>Up to 1,000 applicants</small></label><button class="primary" id="uploadButton">Analyze portfolio →</button><p id="fileName" class="file-name"></p></div>
+        </section>
+      </section>
+    </div>
+  </main>
+  <dialog id="resultDialog"><button class="dialog-close" id="closeDialog">×</button><div id="resultContent"></div></dialog>
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>

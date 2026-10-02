@@ -4,6 +4,7 @@ from pydantic import ValidationError
 
 from Backend.Cleaning import _decision_for_probability, _normalize_threshold
 from Backend.app import _extract_percent
+from Backend.analytics import analyze_batch
 from Backend.schemas import ApplicationSchema
 
 
@@ -99,6 +100,32 @@ class ApplicationSchemaTests(unittest.TestCase):
         self.assertEqual(_extract_percent("34.00%"), 34.0)
         self.assertEqual(_extract_percent("0.34"), 34.0)
         self.assertEqual(_extract_percent("0.93/100"), 0.93)
+
+    def test_batch_analysis_summarizes_decisions_and_segments(self):
+        applications = [
+            {"OCCUPATION": "Managers", "CONTRACT_TYPE": "Cash loans", "CREDIT_HISTORY": 0},
+            {"OCCUPATION": "Laborers", "CONTRACT_TYPE": "Revolving loans", "CREDIT_HISTORY": 1},
+        ]
+        results = [
+            {
+                "Probability of default": "5.00%",
+                "Final Decision": "Auto Approve",
+                "Risk Tier": "Tier A",
+            },
+            {
+                "Probability of default": "45.00%",
+                "Final Decision": "Auto Decline",
+                "Risk Tier": "Tier C",
+            },
+        ]
+
+        summary = analyze_batch(applications, results)
+
+        self.assertEqual(summary["total_applicants"], 2)
+        self.assertEqual(summary["approval_rate"], 50.0)
+        self.assertEqual(summary["decline_rate"], 50.0)
+        self.assertEqual(summary["top_risk_rows"][0]["row"], 2)
+        self.assertEqual(len(summary["by_occupation"]), 2)
 
 
 if __name__ == "__main__":

@@ -53,3 +53,8 @@ class ApplicationSchema(BaseModel):
         ):
             raise ValueError("APPROVE_THRESHOLD must be lower than DECLINE_THRESHOLD")
         return self
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=200)
