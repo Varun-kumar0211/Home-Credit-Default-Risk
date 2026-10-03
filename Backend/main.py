@@ -72,7 +72,7 @@ def _prediction_result(raw_data: dict) -> PredictionResponse:
 
 
 def _demo_dataset():
-    dataframe = pd.read_csv(project_root / "Data" / "three_case_demo.csv")
+    dataframe = pd.read_csv(project_root / "Data" / "model_test_cases.csv")
     applicants = []
     for index, row in dataframe.iterrows():
         applicants.append({
@@ -135,7 +135,7 @@ def manual_assessment(data: ApplicationSchema, _: str = Depends(require_auth)):
 @app.get("/api/default-data")
 def default_data(_: str = Depends(require_auth)):
     dataframe, applicants = _demo_dataset()
-    return _dataset_payload("default-demo", "three_case_demo.csv", dataframe, applicants)
+    return _dataset_payload("default-demo", "Current dataset (model_test_cases.csv)", dataframe, applicants)
 
 
 def _predict_dataset_applicant(dataset_id, applicant_id, owner):

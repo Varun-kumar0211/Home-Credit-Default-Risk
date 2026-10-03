@@ -2,6 +2,10 @@ import unittest
 
 from pydantic import ValidationError
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from Backend.Cleaning import _decision_for_probability, _normalize_threshold
 from Backend.app import _extract_percent
 from Backend.analytics import analyze_batch
@@ -44,11 +48,12 @@ class ApplicationSchemaTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             ApplicationSchema(**payload)
 
-    def test_rejects_unknown_fields(self):
+    def test_ignores_unknown_fields(self):
         payload = {**VALID_APPLICATION, "unexpected": "value"}
-
-        with self.assertRaises(ValidationError):
-            ApplicationSchema(**payload)
+        
+        # Should parse without error and ignore the extra field
+        app = ApplicationSchema(**payload)
+        self.assertFalse(hasattr(app, "unexpected"))
 
     def test_rejects_unrealistic_loan_to_income_ratio(self):
         payload = {**VALID_APPLICATION, "CREDIT_AMOUNT": 5_000_001}

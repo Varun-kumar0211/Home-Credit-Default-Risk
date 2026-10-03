@@ -20,8 +20,9 @@
       <aside class="sidebar">
         <p class="eyebrow">WORKSPACE</p>
         <button data-page="manualPage">Manual assessment</button>
-        <button id="defaultLink" data-page="dashboardPage">Default dataset</button>
+        <button id="defaultLink" data-page="dashboardPage">Current dataset</button>
         <button data-page="uploadPage">Upload CSV</button>
+        <button data-page="settingsPage">⚙️ Settings</button>
       </aside>
       <section class="content">
         <div id="message" class="message hidden"></div>
@@ -42,8 +43,6 @@
           <div class="analysis-grid">
             <article class="panel wide"><div class="panel-heading"><div><p class="eyebrow">RISK OVERVIEW</p><h3>Portfolio risk mix</h3></div><span class="subtle">Thresholds: &lt;8% approve · 8–20% review · ≥20% decline</span></div><div id="riskOverview" class="risk-overview"></div></article>
             <article class="panel"><div class="panel-heading"><h3>Data health</h3><span id="healthSummary"></span></div><div id="qualityProfile"></div></article>
-            <article class="panel"><h3>Numeric profile</h3><div id="numericProfile"></div></article>
-            <article class="panel wide"><div class="panel-heading"><div><h3>Risk analysis</h3><p class="muted">Average predicted default risk across data-driven ranges.</p></div></div><div id="riskFeatureProfile" class="risk-feature-grid"></div></article>
             <article class="panel"><h3>Occupation risk</h3><div id="targetProfile"></div></article>
             <article class="panel"><h3>Segment analysis</h3><div id="segmentProfile"></div></article>
             <article class="panel wide"><div class="panel-heading"><div><h3>Financial correlation</h3><p class="muted">Correlation indicates statistical association, not causation.</p></div></div><div id="correlationProfile"></div></article>
@@ -57,6 +56,18 @@
         <section id="uploadPage" class="page hidden">
           <div class="section-heading"><div><p class="eyebrow">DATA IMPORT</p><h1>Analyze a CSV portfolio</h1><p class="muted">Rows are validated before storage. Invalid rows remain visible but cannot be assessed.</p></div></div>
           <div class="upload-card"><label class="drop-zone"><input id="csvFile" type="file" accept=".csv"><span class="upload-icon">↑</span><strong>Choose a CSV file</strong><small>Up to 1,000 applicants</small></label><button class="primary" id="uploadButton">Analyze portfolio →</button><p id="fileName" class="file-name"></p></div>
+        </section>
+        <section id="settingsPage" class="page hidden">
+          <div class="section-heading"><div><p class="eyebrow">SYSTEM SETTINGS</p><h1>Decision Thresholds</h1><p class="muted">Configure the default probability thresholds for Auto-Approve and Auto-Decline.</p></div></div>
+          <form id="settingsForm" class="form-card">
+            <h3>Decision Risk Tiers</h3>
+            <div class="form-grid">
+              <label>Approve Threshold (%)<input id="approveThreshold" name="APPROVE_THRESHOLD" type="number" step="0.1" min="0" max="100" value="8.0" required></label>
+              <label>Decline Threshold (%)<input id="declineThreshold" name="DECLINE_THRESHOLD" type="number" step="0.1" min="0" max="100" value="20.0" required></label>
+            </div>
+            <p class="muted" style="margin-top: 10px; font-size: 13px;">Applicants with risk below the Approve Threshold are Auto-Approved. Those above the Decline Threshold are Auto-Declined. Thresholds apply to all subsequent assessments.</p>
+            <button class="primary form-submit" type="submit">Save settings →</button>
+          </form>
         </section>
       </section>
     </div>

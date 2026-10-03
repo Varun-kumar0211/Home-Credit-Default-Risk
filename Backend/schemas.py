@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ApplicationSchema(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True)
 
     GENDER: Literal["M", "F", "X"]
     QUALIFICATION: Literal[

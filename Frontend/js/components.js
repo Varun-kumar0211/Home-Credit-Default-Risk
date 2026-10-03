@@ -56,8 +56,10 @@ export function renderAnalysis(analysis) {
 
 export function renderRiskFeatures(analysis) {
   return (analysis.risk_by_feature || []).map(profile => {
-    const max = Math.max(...profile.groups.map(item => item.average_default_probability), 1);
-    return `<div class="feature-risk"><h4>${esc(profile.field)}</h4>${profile.groups.map(item => `<div class="stat-row"><span>${esc(item.label)} <small>n=${item.applicants}</small></span><b>${item.average_default_probability}%</b></div><div class="bar"><i style="width:${item.average_default_probability / max * 100}%"></i></div>`).join("")}</div>`;
+    const groups = profile.groups || [];
+    if (!groups.length) return "";
+    const max = Math.max(...groups.map(item => item.average_default_probability), 1);
+    return `<div class="feature-risk"><h4>${esc(profile.field)}</h4>${groups.map(item => `<div class="stat-row"><span>${esc(item.label)} <small>n=${item.applicants}</small></span><b>${item.average_default_probability}%</b></div><div class="bar"><i style="width:${item.average_default_probability / max * 100}%"></i></div>`).join("")}</div>`;
   }).join("") || "<p class='muted'>No suitable numeric fields were available for grouped risk analysis.</p>";
 }
 
@@ -93,11 +95,13 @@ export function renderGlobalShap(analysis) {
 }
 
 export function renderApplicants(applicants, onAssess) {
+  const approve = parseFloat(localStorage.getItem("approveThreshold") || 8.0) / 100;
+  const decline = parseFloat(localStorage.getItem("declineThreshold") || 20.0) / 100;
   const rows = applicants.map(item => {
     const values = item.data;
     const invalid = item.validation?.length;
     const probability = item.assessment?.default_probability;
-    const risk = probability === undefined ? null : probability < .08 ? "Low Risk" : probability < .2 ? "Manual Review" : "High Risk";
+    const risk = probability === undefined ? null : probability <= approve ? "Low Risk" : probability < decline ? "Manual Review" : "High Risk";
     return `<tr><td class="id">${item.id}</td><td class="profile">${esc(values.OCCUPATION || "—")}</td><td>${esc(values.CONTRACT_TYPE || "—")}</td><td>${values.CREDIT_SCORE ?? "—"}</td><td>$${Number(values.CREDIT_AMOUNT || 0).toLocaleString()}</td><td>${probability === undefined ? "—" : `${(probability * 100).toFixed(2)}%`}</td><td>${risk ? `<span class="risk-badge ${risk === "Low Risk" ? "low" : risk === "High Risk" ? "high" : "review"}">${risk}</span>` : "—"}</td><td>${invalid ? `<span class="bad">${item.validation.length} validation errors</span>` : `<button class="run" data-id="${item.id}">Run assessment →</button>`}</td></tr>`;
   }).join("");
   document.querySelector("#applicantRows").innerHTML = rows || "<tr><td colspan='8'>No applicants found.</td></tr>";

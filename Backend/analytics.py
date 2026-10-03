@@ -289,7 +289,7 @@ def analyze_scored_batch(
     analysis["segment_analysis"] = {
         field: sorted(_segment_summary(applications, results, field),
                       key=lambda item: item["average_default_probability"], reverse=True)
-        for field in ("OCCUPATION", "CONTRACT_TYPE", "QUALIFICATION", "FAMILY_STATUS")
+        for field in ("OCCUPATION", "CONTRACT_TYPE", "QUALIFICATION", "FAMILY_STATUS", "GENDER", "CREDIT_HISTORY")
         if field in dataframe.columns
     }
 

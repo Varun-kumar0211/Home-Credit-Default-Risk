@@ -12,7 +12,9 @@ function filteredApplicants() {
   const rows = current.applicants.filter(item => {
     const values = item.data || {};
     const probability = item.assessment?.default_probability;
-    const tier = probability === undefined ? "" : probability < .08 ? "Low Risk" : probability < .2 ? "Manual Review" : "High Risk";
+    const approve = parseFloat(localStorage.getItem("approveThreshold") || 8.0) / 100;
+    const decline = parseFloat(localStorage.getItem("declineThreshold") || 20.0) / 100;
+    const tier = probability === undefined ? "" : probability <= approve ? "Low Risk" : probability < decline ? "Manual Review" : "High Risk";
     return (!search || item.id.toLowerCase().includes(search))
       && (!risk || tier === risk)
       && (!occupation || values.OCCUPATION === occupation)
@@ -47,11 +49,9 @@ export function showDataset(payload) {
   document.querySelector("#metrics").innerHTML = renderMetrics(payload.analysis);
   document.querySelector("#riskOverview").innerHTML = renderRiskOverview(payload.analysis);
   document.querySelector("#healthSummary").textContent = payload.analysis.data_health?.validation_status === "good" ? "✓ Good" : "⚠ Review";
-  document.querySelector("#numericProfile").innerHTML = analysis.numeric;
   document.querySelector("#qualityProfile").innerHTML = renderHealth(payload.analysis) + analysis.quality;
   document.querySelector("#categoryProfile").innerHTML = analysis.categories || "<p class='muted'>No categories detected.</p>";
   document.querySelector("#targetProfile").innerHTML = renderTarget(payload.analysis);
-  document.querySelector("#riskFeatureProfile").innerHTML = renderRiskFeatures(payload.analysis);
   document.querySelector("#segmentProfile").innerHTML = renderSegments(payload.analysis);
   document.querySelector("#correlationProfile").innerHTML = renderCorrelation(payload.analysis);
   document.querySelector("#shapProfile").innerHTML = renderGlobalShap(payload.analysis);
