@@ -8,6 +8,8 @@ DATASET_DB_PATH = Path(
     os.environ.get("CREDIT_DATASET_DB", PROJECT_ROOT / "Data" / "datasets.sqlite3")
 )
 DATABASE_URL = os.environ.get("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL.removeprefix("postgres://")
 ENVIRONMENT = os.environ.get("APP_ENV", "development").lower()
 
 if ENVIRONMENT == "production":

@@ -200,62 +200,71 @@ async def _upload_csv(file: UploadFile, owner: str, add_to_current: bool = False
     if len(dataframe) > 1000:
         raise HTTPException(status_code=400, detail="CSV files are limited to 1,000 applicants.")
 
-    dataset_id = uuid.uuid4().hex
-    applicants = []
-    for index, row in dataframe.iterrows():
-        data = {
-            str(key): None if pd.isna(value) else value.item() if hasattr(value, "item") else value
-            for key, value in row.to_dict().items()
-        }
-        validation = []
-        try:
-            ApplicationSchema(**data)
-        except ValidationError as exc:
-            validation = [error["msg"] for error in exc.errors()]
-        except Exception as exc:
-            validation = [str(exc)]
-        applicants.append({
-            "id": f"APP-{dataset_id[:8].upper()}-{index + 1:04d}",
-            "row_number": index + 1,
-            "data": data,
-            "validation": validation,
-        })
+    try:
+        dataset_id = uuid.uuid4().hex
+        applicants = []
+        for index, row in dataframe.iterrows():
+            data = {
+                str(key): None if pd.isna(value) else value.item() if hasattr(value, "item") else value
+                for key, value in row.to_dict().items()
+            }
+            validation = []
+            try:
+                ApplicationSchema(**data)
+            except ValidationError as exc:
+                validation = [error["msg"] for error in exc.errors()]
+            except Exception as exc:
+                validation = [str(exc)]
+            applicants.append({
+                "id": f"APP-{dataset_id[:8].upper()}-{index + 1:04d}",
+                "row_number": index + 1,
+                "data": data,
+                "validation": validation,
+            })
 
-    valid_applicants = [item for item in applicants if not item["validation"]]
-    scored_applicants = []
-    results = []
-    for item in valid_applicants:
-        try:
-            validated = ApplicationSchema(**item["data"])
-            result = _prediction_result(validated.model_dump()).model_dump()
-            item["assessment"] = result
-            scored_applicants.append(item)
-            results.append(result)
-        except Exception:
-            item["validation"] = ["The model could not process this applicant."]
-    baseline_path = project_root / "Data" / "application_train.csv"
-    baseline = pd.read_csv(baseline_path, usecols=lambda column: column in dataframe.columns) if baseline_path.exists() else None
-    analysis = analyze_scored_batch(
-        dataframe,
-        [item["data"] for item in scored_applicants],
-        results,
-        baseline,
-    )
-    analysis["valid_rows"] = sum(not item["validation"] for item in applicants)
-    analysis["invalid_rows"] = len(applicants) - analysis["valid_rows"]
-    analysis["chart"] = {
-        "title": "Predicted default-risk distribution",
-        **analysis["risk_probability_histogram"],
-    }
-    datasets.save_dataset(dataset_id, owner, file.filename, analysis, applicants)
-    if add_to_current:
-        datasets.append_current(scored_applicants)
-    return {
-        "dataset_id": dataset_id,
-        "filename": file.filename,
-        "analysis": analysis,
-        "applicants": applicants,
-    }
+        valid_applicants = [item for item in applicants if not item["validation"]]
+        scored_applicants = []
+        results = []
+        for item in valid_applicants:
+            try:
+                validated = ApplicationSchema(**item["data"])
+                result = _prediction_result(validated.model_dump()).model_dump()
+                item["assessment"] = result
+                scored_applicants.append(item)
+                results.append(result)
+            except Exception:
+                item["validation"] = ["The model could not process this applicant."]
+        baseline_path = project_root / "Data" / "application_train.csv"
+        baseline = pd.read_csv(baseline_path, usecols=lambda column: column in dataframe.columns) if baseline_path.exists() else None
+        analysis = analyze_scored_batch(
+            dataframe,
+            [item["data"] for item in scored_applicants],
+            results,
+            baseline,
+        )
+        analysis["valid_rows"] = sum(not item["validation"] for item in applicants)
+        analysis["invalid_rows"] = len(applicants) - analysis["valid_rows"]
+        analysis["chart"] = {
+            "title": "Predicted default-risk distribution",
+            **analysis["risk_probability_histogram"],
+        }
+        datasets.save_dataset(dataset_id, owner, file.filename, analysis, applicants)
+        if add_to_current:
+            datasets.append_current(scored_applicants)
+        return {
+            "dataset_id": dataset_id,
+            "filename": file.filename,
+            "analysis": analysis,
+            "applicants": applicants,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("CSV upload failed for %s", file.filename)
+        raise HTTPException(
+            status_code=503,
+            detail=f"CSV upload could not be completed: {exc}",
+        ) from exc
 
 
 @app.post("/api/csv-analysis")
