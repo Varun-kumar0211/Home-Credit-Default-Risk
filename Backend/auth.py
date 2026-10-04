@@ -1,26 +1,56 @@
 from datetime import datetime, timedelta, timezone
+import base64
+import hashlib
+import hmac
+import os
 
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from config import AUTH_PASSWORD, AUTH_USERNAME, JWT_SECRET
-from schemas import LoginRequest
+from config import JWT_SECRET
+from schemas import LoginRequest, RegisterRequest
 
 
 auth_scheme = HTTPBearer(auto_error=False)
 
 
-def issue_token(credentials: LoginRequest) -> dict:
-    if credentials.username != AUTH_USERNAME or credentials.password != AUTH_PASSWORD:
+def hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+    return "scrypt$" + base64.b64encode(salt + digest).decode()
+
+
+def verify_password(password: str, encoded: str) -> bool:
+    try:
+        scheme, value = encoded.split("$", 1)
+        if scheme != "scrypt":
+            return False
+        raw = base64.b64decode(value)
+        salt, expected = raw[:16], raw[16:]
+        actual = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
+
+
+def issue_token(credentials: LoginRequest, users) -> dict:
+    user = users.get_user(credentials.username)
+    if not user or not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid username or password.")
     now = datetime.now(timezone.utc)
     token = jwt.encode(
-        {"sub": AUTH_USERNAME, "iat": now, "exp": now + timedelta(hours=8)},
+        {"sub": user["username"], "iat": now, "exp": now + timedelta(hours=8)},
         JWT_SECRET,
         algorithm="HS256",
     )
     return {"access_token": token, "token_type": "bearer", "expires_in": 28800}
+
+
+def register_user(credentials: RegisterRequest, users) -> dict:
+    if not users.create_user(credentials.username, hash_password(credentials.password)):
+        raise HTTPException(status_code=409, detail="Username is already registered.")
+    return issue_token(credentials, users)
 
 
 def require_auth(

@@ -10,3 +10,4 @@ scikit-learn
 pydantic
 python-multipart
 PyJWT
+psycopg[binary]>=3.2,<4

@@ -48,6 +48,15 @@ async function start() {
       await loadDefault();
     } catch (error) { required("#loginMessage").textContent = error.message; }
   };
+  required("#registerButton").onclick = async () => {
+    try {
+      const response = await api.register($("#username").value, $("#password").value);
+      setToken(response.access_token);
+      required("#loginPanel").classList.add("hidden");
+      required("#workspace").classList.remove("hidden");
+      await loadDefault();
+    } catch (error) { required("#loginMessage").textContent = error.message; }
+  };
   window.addEventListener("auth-expired", () => {
     setToken(null); required("#workspace").classList.add("hidden"); required("#loginPanel").classList.remove("hidden");
   });
@@ -55,7 +64,10 @@ async function start() {
   document.querySelectorAll("[data-page]").forEach(link => link.onclick = () => show(link.dataset.page));
   required("#defaultLink").onclick = loadDefault;
   required("#csvFile").onchange = event => required("#fileName").textContent = event.target.files[0]?.name || "";
-  required("#uploadButton").onclick = () => { const file = required("#csvFile").files[0]; if (file) upload(file); };
+  required("#uploadButton").onclick = () => {
+    const file = required("#csvFile").files[0];
+    if (file) upload(file, required("#addToCurrent").checked);
+  };
   required("#closeDialog").onclick = () => required("#resultDialog").close();
   setupManualForm();
   setupSettingsForm();

@@ -85,8 +85,8 @@ export async function loadDefault() {
   try { showDataset(await api.defaultData()); } catch (error) { showError(error); }
 }
 
-export async function upload(file) {
-  try { showDataset(await api.uploadCsv(file)); } catch (error) { showError(error); }
+export async function upload(file, addToCurrent) {
+  try { showDataset(await api.uploadCsv(file, addToCurrent)); } catch (error) { showError(error); }
 }
 
 export async function assessManual(payload) {

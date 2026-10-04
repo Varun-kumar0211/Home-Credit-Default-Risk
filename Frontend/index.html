@@ -14,7 +14,7 @@
   <main class="shell">
     <section id="loginPanel" class="login-panel">
       <div><p class="eyebrow">SECURE WORKSPACE</p><h2>Sign in to continue</h2><p class="muted">Use your analyst credentials to access assessments and applicant data.</p><p id="loginMessage" class="bad"></p></div>
-      <form id="loginForm" class="login-form"><input id="username" placeholder="Username" autocomplete="username" required><input id="password" type="password" placeholder="Password" autocomplete="current-password" required><button class="primary" type="submit">Sign in →</button></form>
+      <form id="loginForm" class="login-form"><input id="username" placeholder="Username" autocomplete="username" required><input id="password" type="password" placeholder="Password" autocomplete="current-password" required><button class="primary" type="submit">Sign in →</button><button class="secondary" id="registerButton" type="button">Create account</button></form>
     </section>
     <div id="workspace" class="hidden app-shell">
       <aside class="sidebar">
@@ -55,7 +55,7 @@
         </section>
         <section id="uploadPage" class="page hidden">
           <div class="section-heading"><div><p class="eyebrow">DATA IMPORT</p><h1>Analyze a CSV portfolio</h1><p class="muted">Rows are validated before storage. Invalid rows remain visible but cannot be assessed.</p></div></div>
-          <div class="upload-card"><label class="drop-zone"><input id="csvFile" type="file" accept=".csv"><span class="upload-icon">↑</span><strong>Choose a CSV file</strong><small>Up to 1,000 applicants</small></label><button class="primary" id="uploadButton">Analyze portfolio →</button><p id="fileName" class="file-name"></p></div>
+          <div class="upload-card"><label class="drop-zone"><input id="csvFile" type="file" accept=".csv"><span class="upload-icon">↑</span><strong>Choose a CSV file</strong><small>Up to 1,000 applicants</small></label><label><input id="addToCurrent" type="checkbox"> Add valid rows to the current dataset</label><button class="primary" id="uploadButton">Analyze portfolio →</button><p id="fileName" class="file-name"></p></div>
         </section>
         <section id="settingsPage" class="page hidden">
           <div class="section-heading"><div><p class="eyebrow">SYSTEM SETTINGS</p><h1>Decision Thresholds</h1><p class="muted">Configure the default probability thresholds for Auto-Approve and Auto-Decline.</p></div></div>

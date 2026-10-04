@@ -5,8 +5,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "Frontend"
 DATASET_DB_PATH = Path(
-    os.environ.get("CREDIT_DATASET_DB", PROJECT_ROOT / "data" / "datasets.sqlite3")
+    os.environ.get("CREDIT_DATASET_DB", PROJECT_ROOT / "Data" / "datasets.sqlite3")
 )
+DATABASE_URL = os.environ.get("DATABASE_URL")
 ENVIRONMENT = os.environ.get("APP_ENV", "development").lower()
 
 if ENVIRONMENT == "production":

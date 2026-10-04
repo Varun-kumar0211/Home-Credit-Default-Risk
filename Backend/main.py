@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Annotated, List
 
 import pandas as pd
-from fastapi import Body, Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
@@ -21,17 +22,19 @@ for import_path in (backend_dir, project_root):
 
 from analytics import analyze_batch, analyze_scored_batch
 from api_models import ApplicantAssessmentResponse, PredictionResponse
-from auth import issue_token, require_auth
+from auth import hash_password, issue_token, register_user, require_auth
 from Cleaning import model_source, process_application
-from config import DATASET_DB_PATH, FRONTEND_DIR
+from config import AUTH_PASSWORD, AUTH_USERNAME, DATABASE_URL, DATASET_DB_PATH, FRONTEND_DIR
 from repository import DatasetRepository
-from schemas import ApplicationSchema, LoginRequest
+from schemas import ApplicationSchema, LoginRequest, RegisterRequest
 
 logger = logging.getLogger(__name__)
 started_at = datetime.now(timezone.utc).isoformat()
 app = FastAPI(title="Credit Scoring API Engine")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-datasets = DatasetRepository(DATASET_DB_PATH)
+datasets = DatasetRepository(DATASET_DB_PATH, database_url=DATABASE_URL)
+datasets.ensure_user(AUTH_USERNAME, hash_password(AUTH_PASSWORD))
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @app.middleware("http")
@@ -50,7 +53,12 @@ def root():
 
 @app.post("/auth/login")
 def login(credentials: LoginRequest):
-    return issue_token(credentials)
+    return issue_token(credentials, datasets)
+
+
+@app.post("/auth/register")
+def register(credentials: RegisterRequest):
+    return register_user(credentials, datasets)
 
 
 def _prediction_result(raw_data: dict) -> PredictionResponse:
@@ -72,7 +80,13 @@ def _prediction_result(raw_data: dict) -> PredictionResponse:
 
 
 def _demo_dataset():
-    dataframe = pd.read_csv(project_root / "Data" / "model_test_cases.csv")
+    seed_path = project_root / "Data" / "model_test_cases.csv"
+    if not seed_path.exists():
+        raise HTTPException(
+            status_code=503,
+            detail=f"Seed dataset is missing: {seed_path}. Restore Data/model_test_cases.csv and restart the service.",
+        )
+    dataframe = pd.read_csv(seed_path)
     applicants = []
     for index, row in dataframe.iterrows():
         applicants.append({
@@ -87,6 +101,14 @@ def _demo_dataset():
             },
             "validation": [],
         })
+    added = datasets.get_current_applicants()
+    if added:
+        added_frame = pd.DataFrame([item["data"] for item in added])
+        dataframe = pd.concat([dataframe, added_frame], ignore_index=True, sort=False)
+        start = len(applicants)
+        for offset, item in enumerate(added, start=1):
+            item["row_number"] = start + offset
+        applicants.extend(added)
     return dataframe, applicants
 
 
@@ -166,7 +188,7 @@ def predict_default_applicant(applicant_id: str, owner: str = Depends(require_au
     return _predict_dataset_applicant("default-demo", applicant_id, owner)
 
 
-async def _upload_csv(file: UploadFile, owner: str):
+async def _upload_csv(file: UploadFile, owner: str, add_to_current: bool = False):
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a CSV file.")
     try:
@@ -226,6 +248,8 @@ async def _upload_csv(file: UploadFile, owner: str):
         **analysis["risk_probability_histogram"],
     }
     datasets.save_dataset(dataset_id, owner, file.filename, analysis, applicants)
+    if add_to_current:
+        datasets.append_current(scored_applicants)
     return {
         "dataset_id": dataset_id,
         "filename": file.filename,
@@ -235,13 +259,21 @@ async def _upload_csv(file: UploadFile, owner: str):
 
 
 @app.post("/api/csv-analysis")
-async def csv_analysis(file: UploadFile = File(...), owner: str = Depends(require_auth)):
-    return await _upload_csv(file, owner)
+async def csv_analysis(
+    file: UploadFile = File(...),
+    add_to_current: bool = Form(False),
+    owner: str = Depends(require_auth),
+):
+    return await _upload_csv(file, owner, add_to_current)
 
 
 @app.post("/api/upload-csv")
-async def upload_csv(file: UploadFile = File(...), owner: str = Depends(require_auth)):
-    return await _upload_csv(file, owner)
+async def upload_csv(
+    file: UploadFile = File(...),
+    add_to_current: bool = Form(False),
+    owner: str = Depends(require_auth),
+):
+    return await _upload_csv(file, owner, add_to_current)
 
 
 @app.post("/api/datasets/{dataset_id}/applicants/{applicant_id}/predict", response_model=ApplicantAssessmentResponse)

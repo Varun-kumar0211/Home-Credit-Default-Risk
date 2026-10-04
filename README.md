@@ -10,9 +10,11 @@ Live deployment: https://home-credit-default-risk-zkv2.onrender.com
 
 - JWT-authenticated analyst workspace
 - Manual applicant assessment with labeled inputs
-- Default three-applicant demo dataset
+- Default demo dataset bundled in `Data/model_test_cases.csv`
+- Self-service account registration with hashed passwords
 - CSV upload with row-level validation before storage
-- Persistent SQLite dataset repository
+- Persistent SQLite dataset repository locally, or Neon PostgreSQL through `DATABASE_URL`
+- Optional append of valid CSV rows to the shared current dataset
 - Stable unique applicant IDs
 - Separate assessment endpoint for each applicant
 - Numeric prediction responses:
@@ -104,12 +106,14 @@ development credentials or a development JWT secret in production.
 All `/api` endpoints require an `Authorization: Bearer <token>` header.
 
 - `POST /auth/login` — exchange credentials for a JWT access token.
+- `POST /auth/register` — create an account and receive a JWT access token.
 - `POST /api/manual-assessment` — validate and assess one applicant.
 - `GET /api/default-data` — return the bundled demo dataset and analytics.
 - `POST /api/default-data/applicants/{applicant_id}/predict` — assess one demo
   applicant.
 - `POST /api/csv-analysis` — upload a CSV and return analytics and applicant
-  records.
+  records. Send `add_to_current=true` as a multipart field to append valid
+  rows to the current dataset.
 - `POST /api/upload-csv` — compatibility alias for CSV analysis.
 - `POST /api/datasets/{dataset_id}/applicants/{applicant_id}/predict` — assess
   one uploaded applicant.
@@ -134,9 +138,12 @@ forms, analytics cards, tables, charts, and assessment dialogs.
 
 ## Data and persistence
 
-Uploaded datasets are stored in the SQLite database configured by
-`DATASET_DB_PATH`. Dataset records are scoped to the authenticated owner and
-are retained according to the configured retention policy.
+Uploaded datasets, registered users, and current-dataset additions are stored
+in SQLite locally. Set `DATABASE_URL` to a Neon PostgreSQL connection string
+for persistent hosted storage; the repository creates its tables on startup.
+Dataset records are scoped to the authenticated owner and are retained
+according to the configured retention policy. The bundled seed dataset is
+tracked in Git so a clean deployment can load it reliably.
 
 The model accepts the applicant fields defined by
 `Backend/schemas.py`. Refer to that schema for supported categories, numeric

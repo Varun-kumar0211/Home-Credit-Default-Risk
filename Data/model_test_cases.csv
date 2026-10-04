@@ -1,0 +1,31 @@
+GENDER,QUALIFICATION,FAMILY_STATUS,OCCUPATION,CONTRACT_TYPE,TOTAL_INCOME,CREDIT_AMOUNT,ANNUAL_LOAN_PAYMENT,GOODS_PRICE,AGE,YEARS_OF_EXPERIENCE,CREDIT_SCORE,CREDIT_HISTORY
+M,Higher education,Married,Managers,Cash loans,250000,300000,18000,300000,45,20,820,0
+F,Higher education,Single / not married,Core staff,Cash loans,180000,250000,15000,250000,38,12,780,0
+X,Academic degree,Civil marriage,High skill tech staff,Cash loans,220000,400000,24000,400000,42,18,800,0
+M,Secondary / secondary special,Married,Drivers,Cash loans,120000,180000,12000,180000,40,15,700,0
+F,Higher education,Separated,Accountants,Cash loans,95000,120000,8000,120000,35,10,690,0
+M,Incomplete higher,Single / not married,Sales staff,Revolving loans,80000,100000,7000,100000,29,5,650,0
+F,Secondary / secondary special,Married,Medicine staff,Cash loans,75000,90000,6000,90000,31,7,620,0
+M,Higher education,Widow,Core staff,Cash loans,70000,80000,5500,80000,55,25,610,0
+F,Lower secondary,Single / not married,Laborers,Cash loans,60000,70000,5000,70000,28,4,580,0
+M,Secondary / secondary special,Married,Drivers,Revolving loans,55000,65000,4800,65000,36,12,560,0
+F,Incomplete higher,Civil marriage,Sales staff,Cash loans,50000,60000,4500,60000,27,3,540,1
+M,Lower secondary,Separated,Laborers,Cash loans,48000,55000,4200,55000,33,8,520,1
+F,Secondary / secondary special,Married,Security staff,Cash loans,45000,50000,4000,50000,41,18,500,1
+M,Incomplete higher,Single / not married,Drivers,Revolving loans,42000,48000,3800,48000,25,2,480,1
+F,Lower secondary,Widow,Cooking staff,Cash loans,40000,45000,3600,45000,52,30,460,1
+M,Secondary / secondary special,Married,Laborers,Cash loans,35000,40000,3500,40000,24,1,440,1
+F,Lower secondary,Separated,Security staff,Revolving loans,32000,38000,3300,38000,30,6,420,1
+M,Incomplete higher,Single / not married,Sales staff,Cash loans,30000,35000,3200,35000,26,3,400,1
+F,Secondary / secondary special,Civil marriage,Laborers,Cash loans,28000,32000,3000,32000,23,1,380,1
+M,Lower secondary,Married,Drivers,Revolving loans,25000,30000,2900,30000,37,15,360,1
+F,Higher education,Single / not married,Managers,Cash loans,100000,900000,50000,900000,34,8,760,0
+M,Higher education,Married,Core staff,Cash loans,90000,850000,48000,850000,39,14,740,0
+F,Incomplete higher,Separated,Sales staff,Revolving loans,70000,600000,40000,600000,32,6,680,0
+M,Secondary / secondary special,Single / not married,Drivers,Cash loans,60000,500000,38000,500000,27,4,620,1
+F,Lower secondary,Married,Laborers,Cash loans,45000,350000,30000,350000,29,5,520,1
+M,Higher education,Civil marriage,Accountants,Cash loans,150000,500000,30000,500000,46,22,720,0
+F,Academic degree,Widow,Medicine staff,Cash loans,130000,450000,27000,450000,58,35,750,0
+M,Secondary / secondary special,Separated,Security staff,Revolving loans,50000,250000,22000,250000,31,7,570,1
+F,Incomplete higher,Single / not married,Cooking staff,Cash loans,38000,150000,14000,150000,22,1,490,1
+X,Higher education,Married,High skill tech staff,Cash loans,200000,1000000,60000,1000000,48,25,810,0

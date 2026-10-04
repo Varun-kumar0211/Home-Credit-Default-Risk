@@ -16,5 +16,5 @@ python -c "import uvicorn; print('uvicorn import ok')" 2>&1 || true
 
 echo "Starting API on port $API_PORT..."
 
-# Start the FastAPI app natively (render free tier compatible)
-exec python -m uvicorn Backend.main:app --host 0.0.0.0 --port "$API_PORT"
+# Start one worker by default on Render's free tier.
+exec python -m uvicorn Backend.main:app --host 0.0.0.0 --port "$API_PORT" --workers "${WEB_CONCURRENCY:-1}"

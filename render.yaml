@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: home-credit-default-risk
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CREDIT_JWT_SECRET
+        sync: false
+      - key: CREDIT_AUTH_USERNAME
+        sync: false
+      - key: CREDIT_AUTH_PASSWORD
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "1"
