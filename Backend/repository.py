@@ -41,6 +41,13 @@ class DatasetRepository:
     def _sql(self, query):
         return query.replace("?", "%s") if self.is_postgres else query
 
+    def _executemany(self, connection, query, parameters):
+        cursor = connection.cursor()
+        try:
+            cursor.executemany(self._sql(query), parameters)
+        finally:
+            cursor.close()
+
     def _initialize(self):
         statements = [
             """CREATE TABLE IF NOT EXISTS datasets (
@@ -100,8 +107,9 @@ class DatasetRepository:
                 self._sql("INSERT INTO datasets VALUES (?, ?, ?, ?, ?, ?)"),
                 (dataset_id, owner, filename, now.isoformat(), expires.isoformat(), json.dumps(analysis)),
             )
-            connection.executemany(
-                self._sql("INSERT INTO applicants VALUES (?, ?, ?, ?, ?)"),
+            self._executemany(
+                connection,
+                "INSERT INTO applicants VALUES (?, ?, ?, ?, ?)",
                 [
                     (
                         item["id"], dataset_id, item["row_number"],
@@ -114,8 +122,9 @@ class DatasetRepository:
     def append_current(self, applicants):
         now = datetime.now(timezone.utc).isoformat()
         with self._connection() as connection:
-            connection.executemany(
-                self._sql("INSERT INTO current_applicants VALUES (?, ?, ?, ?)"),
+            self._executemany(
+                connection,
+                "INSERT INTO current_applicants VALUES (?, ?, ?, ?)",
                 [
                     (item["id"], item["row_number"], json.dumps(item["data"]), now)
                     for item in applicants
