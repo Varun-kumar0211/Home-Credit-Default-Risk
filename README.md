@@ -12,6 +12,8 @@ Live deployment: https://home-credit-default-risk-zkv2.onrender.com
 - Manual applicant assessment with labeled inputs
 - Default demo dataset bundled in `Data/model_test_cases.csv`
 - Self-service account registration with hashed passwords
+- Role-aware loan application review workflow with analyst, reviewer, and admin roles
+- Persistent model predictions, SHAP explanations, manual decisions, and audit history
 - CSV upload with row-level validation before storage
 - Persistent SQLite dataset repository locally, or Neon PostgreSQL through `DATABASE_URL`
 - Optional append of valid CSV rows to the shared current dataset
@@ -117,6 +119,16 @@ All `/api` endpoints require an `Authorization: Bearer <token>` header.
 - `POST /api/upload-csv` — compatibility alias for CSV analysis.
 - `POST /api/datasets/{dataset_id}/applicants/{applicant_id}/predict` — assess
   one uploaded applicant.
+- `POST /api/applications` — create a validated, immutable applicant snapshot for review.
+- `GET /api/applications` and `GET /api/applications/{application_id}` — list or retrieve
+  applications visible to the authenticated owner, assigned reviewer, or admin.
+- `POST /api/applications/{application_id}/assess` — persist a model assessment and
+  its complete SHAP explanation atomically.
+- `GET /api/applications/{application_id}/predictions` — retrieve prediction history.
+- `POST /api/applications/{application_id}/reviews` — record an authorized reviewer
+  decision; model overrides require a backend-validated reason.
+- `GET /api/applications/{application_id}/reviews` and `/audit` — retrieve review and
+  append-only audit history.
 
 Legacy batch endpoints remain available:
 
@@ -142,7 +154,9 @@ Uploaded datasets, registered users, and current-dataset additions are stored
 in SQLite locally. Set `DATABASE_URL` to a Neon PostgreSQL connection string
 for persistent hosted storage; the repository creates its tables on startup.
 Dataset records are scoped to the authenticated owner and are retained
-according to the configured retention policy. The bundled seed dataset is
+according to the configured retention policy. Loan applications store validated
+snapshots independently, so they remain available after the source dataset expires.
+The bundled seed dataset is
 tracked in Git so a clean deployment can load it reliably.
 
 The model accepts the applicant fields defined by

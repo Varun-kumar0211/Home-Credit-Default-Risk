@@ -1,0 +1,12 @@
+.git
+.gitignore
+.venv
+**/__pycache__
+*.pyc
+*.sqlite3
+*.db
+.pytest_cache
+tests
+Data/application_train.csv
+Data/application_test.csv
+data cleaning/*.ipynb

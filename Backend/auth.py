@@ -40,7 +40,12 @@ def issue_token(credentials: LoginRequest, users) -> dict:
         raise HTTPException(status_code=401, detail="Invalid username or password.")
     now = datetime.now(timezone.utc)
     token = jwt.encode(
-        {"sub": user["username"], "iat": now, "exp": now + timedelta(hours=8)},
+        {
+            "sub": user["username"],
+            "role": user.get("role", "analyst"),
+            "iat": now,
+            "exp": now + timedelta(hours=8),
+        },
         JWT_SECRET,
         algorithm="HS256",
     )
@@ -48,7 +53,7 @@ def issue_token(credentials: LoginRequest, users) -> dict:
 
 
 def register_user(credentials: RegisterRequest, users) -> dict:
-    if not users.create_user(credentials.username, hash_password(credentials.password)):
+    if not users.create_user(credentials.username, hash_password(credentials.password), role="analyst"):
         raise HTTPException(status_code=409, detail="Username is already registered.")
     return issue_token(credentials, users)
 
@@ -66,3 +71,19 @@ def require_auth(
     if not subject:
         raise HTTPException(status_code=401, detail="Token subject is missing.")
     return str(subject)
+
+
+def require_role(
+    allowed_roles: tuple[str, ...] | set[str] | list[str],
+    users,
+):
+    allowed = {role.lower() for role in allowed_roles}
+
+    def _require_role(username: str = Depends(require_auth)) -> str:
+        user = users.get_user(username)
+        role = (user or {}).get("role", "analyst")
+        if role.lower() not in allowed:
+            raise HTTPException(status_code=403, detail="You do not have permission to access this resource.")
+        return username
+
+    return _require_role

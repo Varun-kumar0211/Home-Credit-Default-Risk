@@ -23,10 +23,10 @@ for import_path in (backend_dir, project_root):
 from analytics import analyze_batch, analyze_scored_batch
 from api_models import ApplicantAssessmentResponse, PredictionResponse
 from auth import hash_password, issue_token, register_user, require_auth
-from Cleaning import model_source, process_application
+from Cleaning import artifact_hash, model_id, model_source, process_application
 from config import AUTH_PASSWORD, AUTH_USERNAME, DATABASE_URL, DATASET_DB_PATH, FRONTEND_DIR
 from repository import DatasetRepository
-from schemas import ApplicationSchema, LoginRequest, RegisterRequest
+from schemas import ApplicationSchema, ApplicationSubmissionRequest, LoginRequest, RegisterRequest, ReviewSubmission
 
 logger = logging.getLogger(__name__)
 started_at = datetime.now(timezone.utc).isoformat()
@@ -35,6 +35,35 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 datasets = DatasetRepository(DATASET_DB_PATH, database_url=DATABASE_URL)
 datasets.ensure_user(AUTH_USERNAME, hash_password(AUTH_PASSWORD))
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+def _current_user(username: str = Depends(require_auth)):
+    user = datasets.get_user(username)
+    if user is None:
+        raise HTTPException(status_code=401, detail="User account is not available.")
+    return user
+
+
+def _application_for_user(application_id: str, user: dict):
+    application = datasets.get_application(application_id)
+    if application is None:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    role = user.get("role", "analyst")
+    if role == "admin" or application["owner"] == user["username"]:
+        return application
+    if role == "reviewer" and application.get("assigned_reviewer") == user["username"]:
+        return application
+    raise HTTPException(status_code=404, detail="Application not found.")
+
+
+def _require_analyst(user: dict):
+    if user.get("role") not in {"analyst", "admin"}:
+        raise HTTPException(status_code=403, detail="Analyst access is required.")
+
+
+def _require_reviewer(user: dict):
+    if user.get("role") not in {"reviewer", "admin"}:
+        raise HTTPException(status_code=403, detail="Reviewer access is required.")
 
 
 @app.middleware("http")
@@ -59,6 +88,173 @@ def login(credentials: LoginRequest):
 @app.post("/auth/register")
 def register(credentials: RegisterRequest):
     return register_user(credentials, datasets)
+
+
+@app.post("/api/applications")
+def create_application(payload: ApplicationSubmissionRequest, user: dict = Depends(_current_user)):
+    _require_analyst(user)
+    try:
+        validated_snapshot = ApplicationSchema(**payload.applicant_snapshot)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+    if payload.reviewer_username:
+        reviewer = datasets.get_user(payload.reviewer_username)
+        if not reviewer or reviewer.get("role") not in {"reviewer", "admin"}:
+            raise HTTPException(status_code=400, detail="Assigned reviewer is not authorized.")
+    owner = user["username"]
+    application_id = datasets.create_application(
+        owner=owner,
+        source_type=payload.source_type,
+        applicant_snapshot=validated_snapshot.model_dump(),
+        dataset_id=payload.dataset_id,
+        source_applicant_id=payload.source_applicant_id,
+        assigned_reviewer=payload.reviewer_username,
+        status="submitted",
+    )
+    datasets.add_audit_log(application_id, owner, "application_created", None, payload.model_dump())
+    return {
+        "application_id": application_id,
+        "owner": owner,
+        "status": "submitted",
+        "source_type": payload.source_type,
+    }
+
+
+@app.get("/api/applications")
+def list_applications(user: dict = Depends(_current_user)):
+    if user.get("role") == "reviewer":
+        applications = [
+            item for item in datasets.list_applications()
+            if item.get("assigned_reviewer") == user["username"]
+        ]
+    elif user.get("role") == "admin":
+        applications = datasets.list_applications()
+    else:
+        applications = datasets.list_applications(owner=user["username"])
+    return {"applications": applications}
+
+
+@app.get("/api/applications/{application_id}")
+def get_application(application_id: str, user: dict = Depends(_current_user)):
+    return _application_for_user(application_id, user)
+
+
+@app.post("/api/applications/{application_id}/assess")
+def assess_application(application_id: str, user: dict = Depends(_current_user)):
+    _require_analyst(user)
+    application = _application_for_user(application_id, user)
+    applicant = application["applicant_snapshot"]
+    raw_result = process_application(applicant)
+    result = PredictionResponse(
+        decision=raw_result["decision"],
+        risk_tier=raw_result["risk_tier"],
+        default_probability=raw_result["default_probability"],
+        risk_score=raw_result["risk_score"],
+        trust_score=raw_result["trust_score"],
+        confidence=raw_result["confidence"],
+        approve_threshold=raw_result["approve_threshold"],
+        decline_threshold=raw_result["decline_threshold"],
+        recommended_rate=raw_result["recommended_rate"],
+        loan_amount_decision=raw_result["loan_amount_decision"],
+        explanations=raw_result["explanations"],
+        shap_values=raw_result["shap_values"],
+    )
+    datasets.ensure_model_version(
+        model_id,
+        {
+            "model_source": model_source,
+            "model_version": model_id,
+            "artifact_hash": artifact_hash,
+            "feature_schema": [item.feature for item in result.shap_values],
+            "preprocessing_version": "Cleaning.process_application",
+        },
+    )
+    prediction_payload = {
+        "default_probability": result.default_probability,
+        "risk_score": result.risk_score,
+        "trust_score": result.trust_score,
+        "confidence": result.confidence,
+        "risk_tier": result.risk_tier,
+        "decision": result.decision,
+        "approve_threshold": result.approve_threshold,
+        "decline_threshold": result.decline_threshold,
+        "recommended_rate": result.recommended_rate,
+        "loan_amount_decision": result.loan_amount_decision,
+        "input_snapshot": applicant,
+        "processed_feature_snapshot": raw_result["processed_feature_snapshot"],
+    }
+    prediction_id = datasets.persist_prediction_assessment(
+        application_id,
+        model_id,
+        prediction_payload,
+        {
+            "base_value": raw_result["shap_base_value"],
+            "output_space": raw_result["shap_output_space"],
+            "feature_contributions": [item.model_dump() for item in result.shap_values],
+        },
+    )
+    datasets.add_audit_log(application_id, user["username"], "prediction_generated", None, {"prediction_id": prediction_id})
+    return {"application_id": application_id, "prediction_id": prediction_id, "result": result.model_dump()}
+
+
+@app.get("/api/applications/{application_id}/predictions")
+def list_predictions(application_id: str, user: dict = Depends(_current_user)):
+    _application_for_user(application_id, user)
+    return {"predictions": datasets.list_predictions(application_id)}
+
+
+@app.post("/api/applications/{application_id}/reviews")
+def submit_review(application_id: str, payload: ReviewSubmission, user: dict = Depends(_current_user)):
+    _require_reviewer(user)
+    application = _application_for_user(application_id, user)
+    if application["status"] in {"approved", "rejected"}:
+        raise HTTPException(status_code=409, detail="Reassessment is required before another final review.")
+    predictions = datasets.list_predictions(application_id)
+    prediction = next(
+        (item for item in predictions if item["prediction_id"] == payload.prediction_id),
+        predictions[0] if payload.prediction_id is None and predictions else None,
+    )
+    if prediction is None:
+        raise HTTPException(status_code=400, detail="A prediction for this application is required.")
+    expected_decision = {
+        "Auto Approve": "approved",
+        "Auto Decline": "rejected",
+        "Manual Review Required": "request_information",
+    }.get(prediction["model_decision"])
+    is_override = expected_decision != payload.reviewer_decision
+    if is_override and not payload.override_reason:
+        raise HTTPException(status_code=422, detail="override_reason is required when overriding the model.")
+    status = {
+        "approved": "approved",
+        "rejected": "rejected",
+        "request_information": "needs_information",
+    }[payload.reviewer_decision]
+    try:
+        review_id = datasets.finalize_review(
+            application_id,
+            prediction["prediction_id"],
+            user["username"],
+            payload.reviewer_decision,
+            payload.review_notes,
+            payload.override_reason,
+            is_override,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    datasets.add_audit_log(application_id, user["username"], "manual_review", application["status"], status)
+    return {"review_id": review_id, "application_id": application_id, "is_override": is_override}
+
+
+@app.get("/api/applications/{application_id}/reviews")
+def get_reviews(application_id: str, user: dict = Depends(_current_user)):
+    _application_for_user(application_id, user)
+    return {"reviews": datasets.list_reviews(application_id)}
+
+
+@app.get("/api/applications/{application_id}/audit")
+def get_audit(application_id: str, user: dict = Depends(_current_user)):
+    _application_for_user(application_id, user)
+    return {"audit": datasets.list_audit_logs(application_id)}
 
 
 def _prediction_result(raw_data: dict) -> PredictionResponse:

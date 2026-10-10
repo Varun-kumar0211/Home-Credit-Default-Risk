@@ -3,6 +3,7 @@ import joblib
 import shap
 import numpy as np
 import os
+import hashlib
 
 current_dir = os.path.dirname(__file__)
 model_path = os.path.abspath(os.path.join(current_dir, '..', 'data cleaning', 'LGB_CLASSIFIER_MODEL.pkl'))
@@ -12,6 +13,18 @@ calibrated_model_path = os.path.abspath(
 
 artifact_path = calibrated_model_path if os.path.exists(calibrated_model_path) else model_path
 model_source = "calibrated" if artifact_path == calibrated_model_path else "legacy"
+
+
+def _sha256_file(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as artifact_file:
+        for chunk in iter(lambda: artifact_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+artifact_hash = _sha256_file(artifact_path)
+model_id = f"{model_source}-{artifact_hash}"
 artifact = joblib.load(artifact_path)
 prediction_model = artifact.predictor if hasattr(artifact, 'predictor') else artifact
 explanation_model = (
@@ -25,6 +38,7 @@ clip_bounds = getattr(artifact, 'clip_bounds', {})
 approve_threshold = getattr(artifact, 'approve_threshold', 0.08)
 decline_threshold = getattr(artifact, 'decline_threshold', 0.20)
 explainer=shap.TreeExplainer(explanation_model)
+shap_model_output = getattr(explainer, "model_output", "raw")
 FEATURE_LABELS = {
     'CREDIT_SCORE': 'Credit score',
     'AMT_CREDIT': 'Requested credit amount',
@@ -229,7 +243,18 @@ def process_application(raw_data)->dict:
             }
             for feat, val in shap_impacts
         ],
-
-
-
+        "processed_feature_snapshot": {
+            key: value.item() if hasattr(value, "item") else value
+            for key, value in ml_feature.items()
+        },
+        "model_source": model_source,
+        "shap_base_value": (
+            float(explainer.expected_value[1])
+            if isinstance(explainer.expected_value, (list, np.ndarray))
+            and len(explainer.expected_value) > 1
+            else float(explainer.expected_value)
+        ),
+        "shap_output_space": f"{shap_model_output}_model_output",
+        "model_id": model_id,
+        "artifact_hash": artifact_hash,
     }

@@ -62,3 +62,18 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(LoginRequest):
     pass
+
+
+class ApplicationSubmissionRequest(BaseModel):
+    source_type: str = "manual"
+    dataset_id: str | None = None
+    source_applicant_id: str | None = None
+    reviewer_username: str | None = None
+    applicant_snapshot: dict
+
+
+class ReviewSubmission(BaseModel):
+    prediction_id: str | None = None
+    reviewer_decision: Literal["approved", "rejected", "request_information"]
+    review_notes: str = ""
+    override_reason: str | None = None
