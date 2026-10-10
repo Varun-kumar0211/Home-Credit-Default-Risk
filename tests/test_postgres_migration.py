@@ -6,6 +6,18 @@ import pytest
 from Backend.repository import DatasetRepository
 
 
+def test_postgres_placeholder_conversion():
+    repository = DatasetRepository.__new__(DatasetRepository)
+    repository.database_url = "postgresql://test-only"
+
+    assert repository._sql(
+        "SELECT 1 FROM schema_migrations WHERE migration_name = ?"
+    ) == "SELECT 1 FROM schema_migrations WHERE migration_name = %s"
+    assert repository._sql(
+        "INSERT INTO applicants VALUES (?, ?, ?, ?, ?)"
+    ) == "INSERT INTO applicants VALUES (%s, %s, %s, %s, %s)"
+
+
 @pytest.mark.skipif(
     not os.environ.get("CREDIT_TEST_DATABASE_URL"),
     reason="Set CREDIT_TEST_DATABASE_URL to a disposable PostgreSQL database; production URLs are not used.",

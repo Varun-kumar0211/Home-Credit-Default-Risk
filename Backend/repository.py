@@ -241,7 +241,9 @@ class DatasetRepository:
                 "add_loan_review_schema",
             ):
                 if not connection.execute(
-                    "SELECT 1 FROM schema_migrations WHERE migration_name = ?",
+                    self._sql(
+                        "SELECT 1 FROM schema_migrations WHERE migration_name = ?"
+                    ),
                     (migration_name,),
                 ).fetchone():
                     self._record_migration(connection, migration_name)
@@ -299,7 +301,7 @@ class DatasetRepository:
             )
             self._executemany(
                 connection,
-                "INSERT INTO applicants VALUES (?, ?, ?, ?, ?)",
+                self._sql("INSERT INTO applicants VALUES (?, ?, ?, ?, ?)"),
                 [
                     (
                         item["id"], dataset_id, item["row_number"],
@@ -314,7 +316,7 @@ class DatasetRepository:
         with self._connection() as connection:
             self._executemany(
                 connection,
-                "INSERT INTO current_applicants VALUES (?, ?, ?, ?)",
+                self._sql("INSERT INTO current_applicants VALUES (?, ?, ?, ?)"),
                 [
                     (item["id"], item["row_number"], json.dumps(item["data"]), now)
                     for item in applicants
