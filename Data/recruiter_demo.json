@@ -1,0 +1,215 @@
+{
+  "artifact_hash": "bf44ce3e1ee5baa500f96deebcc40b61998bad3027c1181bbac9d8eb4d5ee5c0",
+  "snapshot": {
+    "GENDER": "M",
+    "QUALIFICATION": "Higher education",
+    "FAMILY_STATUS": "Married",
+    "OCCUPATION": "Managers",
+    "CONTRACT_TYPE": "Cash loans",
+    "TOTAL_INCOME": 250000,
+    "CREDIT_AMOUNT": 300000,
+    "ANNUAL_LOAN_PAYMENT": 18000,
+    "GOODS_PRICE": 300000,
+    "AGE": 45,
+    "YEARS_OF_EXPERIENCE": 20,
+    "CREDIT_SCORE": 820,
+    "CREDIT_HISTORY": 0
+  },
+  "prediction": {
+    "default_probability": 0.009334128983944744,
+    "risk_score": 0.9334128983944744,
+    "trust_score": 99.06658710160552,
+    "confidence": 0.9906658710160553,
+    "risk_tier": "Tier A",
+    "decision": "Auto Approve",
+    "approve_threshold": 0.08,
+    "decline_threshold": 0.2,
+    "recommended_rate": "5.5%",
+    "loan_amount_decision": "Approve Requested Amount",
+    "processed_feature_snapshot": {
+      "CODE_GENDER": "M",
+      "NAME_EDUCATION_TYPE": "Higher education",
+      "NAME_FAMILY_STATUS": "Married",
+      "OCCUPATION_TYPE": "Managers",
+      "NAME_CONTRACT_TYPE": "Cash loans",
+      "AMT_INCOME_TOTAL": 250000,
+      "AMT_CREDIT": 300000,
+      "AMT_ANNUITY": 18000,
+      "AMT_GOODS_PRICE": 300000,
+      "AGE_YEARS": 45,
+      "YEARS_EMPLOYED": 20,
+      "CREDIT_SCORE": 820,
+      "NO_CREDIT_HISTORY": 0,
+      "CREDIT_TO_INCOME_RATIO": 1.2,
+      "ANNUITY_TO_INCOME_RATIO": 0.072,
+      "CREDIT_TERM": 16.666666666666668,
+      "GOODS_TO_CREDIT_RATIO": 1.0,
+      "EMPLOYED_TO_BIRTH_RATIO": 0.4444444444444444,
+      "LOG_INCOME": 12.429220196836383,
+      "LOG_CREDIT": 12.611541086966115,
+      "LOG_GOODS_PRICE": 12.611541086966115,
+      "LOG_ANNUITY": 9.798182590890704
+    },
+    "input_snapshot": {
+      "GENDER": "M",
+      "QUALIFICATION": "Higher education",
+      "FAMILY_STATUS": "Married",
+      "OCCUPATION": "Managers",
+      "CONTRACT_TYPE": "Cash loans",
+      "TOTAL_INCOME": 250000,
+      "CREDIT_AMOUNT": 300000,
+      "ANNUAL_LOAN_PAYMENT": 18000,
+      "GOODS_PRICE": 300000,
+      "AGE": 45,
+      "YEARS_OF_EXPERIENCE": 20,
+      "CREDIT_SCORE": 820,
+      "CREDIT_HISTORY": 0
+    }
+  },
+  "explanation": {
+    "base_value": -0.4963675882755053,
+    "output_space": "raw_model_output",
+    "feature_contributions": [
+      {
+        "feature": "CREDIT_SCORE",
+        "label": "Credit score",
+        "value": 820,
+        "impact": -1.2283,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "NAME_EDUCATION_TYPE",
+        "label": "Education level",
+        "value": "Higher education",
+        "impact": -0.2488,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "EMPLOYED_TO_BIRTH_RATIO",
+        "label": "Employment-to-age ratio",
+        "value": 0.4444444444444444,
+        "impact": -0.1787,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "OCCUPATION_TYPE",
+        "label": "Occupation Type",
+        "value": "Managers",
+        "impact": -0.17,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "YEARS_EMPLOYED",
+        "label": "Years Employed",
+        "value": 20,
+        "impact": -0.1591,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "GOODS_TO_CREDIT_RATIO",
+        "label": "Goods To Credit Ratio",
+        "value": 1.0,
+        "impact": -0.1174,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "CREDIT_TO_INCOME_RATIO",
+        "label": "Credit-to-income ratio",
+        "value": 1.2,
+        "impact": -0.0661,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "ANNUITY_TO_INCOME_RATIO",
+        "label": "Payment-to-income ratio",
+        "value": 0.072,
+        "impact": -0.0644,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "AMT_ANNUITY",
+        "label": "Annual loan payment",
+        "value": 18000,
+        "impact": -0.0238,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "LOG_ANNUITY",
+        "label": "Log Annuity",
+        "value": 9.798182590890704,
+        "impact": -0.0114,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "LOG_CREDIT",
+        "label": "Log Credit",
+        "value": 12.611541086966115,
+        "impact": -0.0036,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "NO_CREDIT_HISTORY",
+        "label": "No Credit History",
+        "value": 0,
+        "impact": 0.0,
+        "direction": "reduces_risk"
+      },
+      {
+        "feature": "LOG_GOODS_PRICE",
+        "label": "Log Goods Price",
+        "value": 12.611541086966115,
+        "impact": 0.0015,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "LOG_INCOME",
+        "label": "Log Income",
+        "value": 12.429220196836383,
+        "impact": 0.0083,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "AMT_GOODS_PRICE",
+        "label": "Amt Goods Price",
+        "value": 300000,
+        "impact": 0.0096,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "AMT_INCOME_TOTAL",
+        "label": "Total income",
+        "value": 250000,
+        "impact": 0.0157,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "AGE_YEARS",
+        "label": "Age Years",
+        "value": 45,
+        "impact": 0.0237,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "NAME_CONTRACT_TYPE",
+        "label": "Contract type",
+        "value": "Cash loans",
+        "impact": 0.0509,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "AMT_CREDIT",
+        "label": "Requested credit amount",
+        "value": 300000,
+        "impact": 0.0614,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "CREDIT_TERM",
+        "label": "Estimated credit term",
+        "value": 16.666666666666668,
+        "impact": 0.2352,
+        "direction": "increases_risk"
+      }
+    ]
+  }
+}

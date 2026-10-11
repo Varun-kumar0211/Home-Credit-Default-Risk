@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -28,13 +29,14 @@ def test_postgres_migration_is_repeatable_and_preserves_data():
         pytest.fail("Refusing to run migration tests against a production-looking database URL.")
 
     repository = DatasetRepository(Path("unused.sqlite3"), database_url=database_url)
-    assert repository.create_user("migration-test-user", "test-hash")
+    username = "migration-test-" + uuid4().hex
+    assert repository.create_user(username, "test-hash")
     repository.create_application(
-        "migration-test-user",
+        username,
         "manual",
         {"GENDER": "M"},
     )
 
     DatasetRepository(Path("unused.sqlite3"), database_url=database_url)
-    assert repository.get_user("migration-test-user")["username"] == "migration-test-user"
-    assert len(repository.list_applications(owner="migration-test-user")) == 1
+    assert repository.get_user(username)["username"] == username
+    assert len(repository.list_applications(owner=username)) == 1

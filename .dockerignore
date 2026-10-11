@@ -10,3 +10,16 @@ tests
 Data/application_train.csv
 Data/application_test.csv
 data cleaning/*.ipynb
+.env
+.env.*
+*.pem
+*.key
+*.sqlite3-*
+*.db-*
+.codex
+.agents
+scripts
+*_REPORT.md
+DEPLOYMENT_READINESS_AUDIT.md
+*.csv
+!Data/model_test_cases.csv

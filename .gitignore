@@ -4,3 +4,9 @@
 *.sqlite3
 *.db
 __pycache__/
+.env
+.env.*
+*.pem
+*.key
+*.sqlite3-*
+*.db-*

@@ -4,7 +4,7 @@ set -e
 # Run from the project root so serialized Backend.* model classes can be imported.
 cd /app || exit 1
 
-API_PORT="${API_PORT:-8000}"
+API_PORT="${PORT:-${API_PORT:-8000}}"
 
 echo "=== ENTRYPOINT DEBUG ==="
 echo "Working directory: $(pwd)"
@@ -17,4 +17,4 @@ python -c "import uvicorn; print('uvicorn import ok')" 2>&1 || true
 echo "Starting API on port $API_PORT..."
 
 # Start one worker by default on Render's free tier.
-exec python -m uvicorn Backend.main:app --host 0.0.0.0 --port "$API_PORT" --workers "${WEB_CONCURRENCY:-1}"
+exec python -m uvicorn Backend.main:app --host 0.0.0.0 --port "$API_PORT" --workers "${WEB_CONCURRENCY:-1}" --limit-concurrency 8

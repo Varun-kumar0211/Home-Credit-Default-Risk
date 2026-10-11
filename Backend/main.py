@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, List
 
 import pandas as pd
-from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.gzip import GZipMiddleware
@@ -22,11 +22,12 @@ for import_path in (backend_dir, project_root):
 
 from analytics import analyze_batch, analyze_scored_batch
 from api_models import ApplicantAssessmentResponse, PredictionResponse
-from auth import hash_password, issue_token, register_user, require_auth
+from auth import hash_password, issue_token, issue_account_token, register_user, require_auth, validate_account
 from Cleaning import artifact_hash, model_id, model_source, process_application
-from config import AUTH_PASSWORD, AUTH_USERNAME, DATABASE_URL, DATASET_DB_PATH, FRONTEND_DIR
-from repository import DatasetRepository
-from schemas import ApplicationSchema, ApplicationSubmissionRequest, LoginRequest, RegisterRequest, ReviewSubmission
+from config import AUTH_PASSWORD, AUTH_USERNAME, DATABASE_URL, DATASET_DB_PATH, FRONTEND_DIR, DEMO_ENABLED, MAX_BATCH_ROWS, MAX_UPLOAD_BYTES
+from Backend.demo import DEMO_ACCOUNTS, initialize_demo
+from Backend.repository import AssignmentError, DatasetRepository
+from schemas import ApplicantSubmission, IntakeClaim, ApplicationSchema, ApplicationSubmissionRequest, AssignmentUpdate, LoginRequest, RegisterRequest, ReviewSubmission, UserRoleUpdate, UserStatusUpdate
 
 logger = logging.getLogger(__name__)
 started_at = datetime.now(timezone.utc).isoformat()
@@ -34,22 +35,33 @@ app = FastAPI(title="Credit Scoring API Engine")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 datasets = DatasetRepository(DATASET_DB_PATH, database_url=DATABASE_URL)
 datasets.ensure_user(AUTH_USERNAME, hash_password(AUTH_PASSWORD))
+if DEMO_ENABLED:
+    initialize_demo(datasets, hash_password, model_id, artifact_hash)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
-def _current_user(username: str = Depends(require_auth)):
-    user = datasets.get_user(username)
-    if user is None:
-        raise HTTPException(status_code=401, detail="User account is not available.")
+def _current_user(request: Request, payload: dict = Depends(require_auth)):
+    user = validate_account(payload, datasets)
+    if user["username"] in DEMO_ACCOUNTS.values() and request.method not in {"GET", "HEAD"}:
+        raise HTTPException(status_code=403, detail="Recruiter demo is read-only. Create your own Applicant account to submit an application.")
+    if user["role"] == "applicant" and request.url.path != "/auth/me" and not request.url.path.startswith("/api/applicant/"):
+        raise HTTPException(status_code=403, detail="Staff access is required.")
     return user
 
 
+def _analyst_username(user: dict = Depends(_current_user)):
+    _require_analyst(user)
+    return user["username"]
+
+
 def _application_for_user(application_id: str, user: dict):
+    if user.get("role") not in {"analyst", "reviewer", "admin"}:
+        raise HTTPException(status_code=403, detail="Staff access is required.")
     application = datasets.get_application(application_id)
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found.")
     role = user.get("role", "analyst")
-    if role == "admin" or application["owner"] == user["username"]:
+    if role == "admin" or (role == "analyst" and ((application["source_type"] != "applicant" and application["owner"] == user["username"]) or application.get("assigned_analyst") == user["username"])):
         return application
     if role == "reviewer" and application.get("assigned_reviewer") == user["username"]:
         return application
@@ -64,6 +76,16 @@ def _require_analyst(user: dict):
 def _require_reviewer(user: dict):
     if user.get("role") not in {"reviewer", "admin"}:
         raise HTTPException(status_code=403, detail="Reviewer access is required.")
+
+
+def _require_admin(user: dict):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access is required.")
+
+
+@app.exception_handler(AssignmentError)
+async def repository_error_handler(request: Request, exc: AssignmentError):
+    return JSONResponse(status_code=exc.status_code, content={"detail": str(exc)})
 
 
 @app.middleware("http")
@@ -87,19 +109,57 @@ def login(credentials: LoginRequest):
 
 @app.post("/auth/register")
 def register(credentials: RegisterRequest):
+    if credentials.username in DEMO_ACCOUNTS.values():
+        raise HTTPException(status_code=409, detail="This username is reserved for the recruiter demo.")
     return register_user(credentials, datasets)
+
+
+@app.get("/auth/demo")
+def demo_availability():
+    return {"enabled": DEMO_ENABLED}
+
+
+@app.post("/auth/demo/{role}")
+def demo_login(role: str):
+    if not DEMO_ENABLED or role not in DEMO_ACCOUNTS:
+        raise HTTPException(status_code=404, detail="Demo is unavailable.")
+    user = datasets.get_user(DEMO_ACCOUNTS[role])
+    if not user or not user["is_active"] or user["role"] != role:
+        raise HTTPException(status_code=403, detail="Demo account is unavailable.")
+    return issue_account_token(user)
+
+
+@app.get("/auth/me")
+def me(user: dict = Depends(_current_user)):
+    identity = {"username": user["username"], "role": user.get("role", "analyst")}
+    if user["username"] in DEMO_ACCOUNTS.values():
+        identity["read_only"] = True
+    return identity
+
+
+@app.get("/api/reviewers")
+def list_reviewers(user: dict = Depends(_current_user)):
+    """Return usernames eligible for loan-application assignment."""
+    _require_analyst(user)
+    with datasets._connection() as connection:
+        rows = connection.execute(
+            datasets._sql("SELECT username FROM users WHERE role='reviewer' AND is_active=1 ORDER BY username ASC")
+        ).fetchall()
+    return {"reviewers": [row[0] for row in rows]}
 
 
 @app.post("/api/applications")
 def create_application(payload: ApplicationSubmissionRequest, user: dict = Depends(_current_user)):
     _require_analyst(user)
+    if payload.source_type == "applicant":
+        raise HTTPException(status_code=422, detail="Applicant source is reserved for portal submissions.")
     try:
         validated_snapshot = ApplicationSchema(**payload.applicant_snapshot)
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
     if payload.reviewer_username:
         reviewer = datasets.get_user(payload.reviewer_username)
-        if not reviewer or reviewer.get("role") not in {"reviewer", "admin"}:
+        if not reviewer or reviewer.get("role") != "reviewer" or not reviewer["is_active"]:
             raise HTTPException(status_code=400, detail="Assigned reviewer is not authorized.")
     owner = user["username"]
     application_id = datasets.create_application(
@@ -110,8 +170,9 @@ def create_application(payload: ApplicationSubmissionRequest, user: dict = Depen
         source_applicant_id=payload.source_applicant_id,
         assigned_reviewer=payload.reviewer_username,
         status="submitted",
+        actor_version=user["version"],
     )
-    datasets.add_audit_log(application_id, owner, "application_created", None, payload.model_dump())
+    datasets.add_audit_log(application_id, owner, "application_created", None, payload.model_dump(exclude={"applicant_snapshot"}))
     return {
         "application_id": application_id,
         "owner": owner,
@@ -121,17 +182,52 @@ def create_application(payload: ApplicationSubmissionRequest, user: dict = Depen
 
 
 @app.get("/api/applications")
-def list_applications(user: dict = Depends(_current_user)):
-    if user.get("role") == "reviewer":
-        applications = [
-            item for item in datasets.list_applications()
-            if item.get("assigned_reviewer") == user["username"]
-        ]
-    elif user.get("role") == "admin":
-        applications = datasets.list_applications()
-    else:
-        applications = datasets.list_applications(owner=user["username"])
-    return {"applications": applications}
+def list_applications(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), user: dict = Depends(_current_user)):
+    if user["role"] not in {"analyst", "reviewer", "admin"}:
+        raise HTTPException(status_code=403, detail="Staff access is required.")
+    return datasets.application_page(role=user["role"], username=user["username"], limit=limit, offset=offset)
+
+
+def _require_applicant(user):
+    if user["role"] != "applicant":
+        raise HTTPException(status_code=403, detail="Applicant access is required.")
+
+
+@app.post("/api/applicant/applications", status_code=201)
+def applicant_submit(payload: ApplicantSubmission, user: dict = Depends(_current_user)):
+    _require_applicant(user)
+    snapshot = payload.applicant_snapshot.model_dump(exclude={"APPROVE_THRESHOLD", "DECLINE_THRESHOLD"})
+    application_id = datasets.create_application(user["username"], "applicant", snapshot, actor_version=user["version"])
+    return datasets.public_application(datasets.get_application(application_id))
+
+
+@app.get("/api/applicant/applications")
+def applicant_list(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), user: dict = Depends(_current_user)):
+    _require_applicant(user)
+    return datasets.application_page(role="applicant", username=user["username"], limit=limit, offset=offset)
+
+
+@app.get("/api/applicant/applications/{application_id}")
+def applicant_detail(application_id: str, user: dict = Depends(_current_user)):
+    _require_applicant(user)
+    application = datasets.get_application(application_id, owner=user["username"])
+    if not application or application["source_type"] != "applicant":
+        raise HTTPException(status_code=404, detail="Application not found.")
+    return datasets.public_application(application, detail=True)
+
+
+@app.get("/api/analyst/intake")
+def analyst_intake(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), user: dict = Depends(_current_user)):
+    if user["role"] != "analyst":
+        raise HTTPException(status_code=403, detail="Analyst access is required.")
+    return datasets.application_page(role="analyst", username=user["username"], limit=limit, offset=offset, intake=True)
+
+
+@app.post("/api/analyst/intake/{application_id}/claim")
+def analyst_claim(application_id: str, payload: IntakeClaim, user: dict = Depends(_current_user)):
+    if user["role"] != "analyst":
+        raise HTTPException(status_code=403, detail="Analyst access is required.")
+    return datasets.claim_application(application_id, user["username"], user["version"], payload.reviewer_username, payload.expected_updated_at)
 
 
 @app.get("/api/applications/{application_id}")
@@ -143,6 +239,10 @@ def get_application(application_id: str, user: dict = Depends(_current_user)):
 def assess_application(application_id: str, user: dict = Depends(_current_user)):
     _require_analyst(user)
     application = _application_for_user(application_id, user)
+    if application["status"] in {"approved", "rejected"}:
+        raise HTTPException(status_code=409, detail="Finalized applications cannot be reassessed.")
+    if application["source_type"] == "applicant" and not application.get("assigned_analyst"):
+        raise HTTPException(status_code=409, detail="An Analyst must claim this application before assessment.")
     applicant = application["applicant_snapshot"]
     raw_result = process_application(applicant)
     result = PredictionResponse(
@@ -192,8 +292,8 @@ def assess_application(application_id: str, user: dict = Depends(_current_user))
             "output_space": raw_result["shap_output_space"],
             "feature_contributions": [item.model_dump() for item in result.shap_values],
         },
+        actor=user["username"], actor_version=user["version"], expected_updated_at=application["updated_at"],
     )
-    datasets.add_audit_log(application_id, user["username"], "prediction_generated", None, {"prediction_id": prediction_id})
     return {"application_id": application_id, "prediction_id": prediction_id, "result": result.model_dump()}
 
 
@@ -203,12 +303,27 @@ def list_predictions(application_id: str, user: dict = Depends(_current_user)):
     return {"predictions": datasets.list_predictions(application_id)}
 
 
+@app.get("/api/applications/{application_id}/predictions/{prediction_id}/explanation")
+@app.get("/api/applications/{application_id}/predictions/{prediction_id}/shap")
+def get_prediction_explanation(
+    application_id: str, prediction_id: str, user: dict = Depends(_current_user)
+):
+    _application_for_user(application_id, user)
+    predictions = datasets.list_predictions(application_id)
+    if not any(p["prediction_id"] == prediction_id for p in predictions):
+        raise HTTPException(status_code=404, detail="Prediction not found for this application.")
+    explanation = datasets.get_shap_explanation(prediction_id)
+    if explanation is None:
+        raise HTTPException(status_code=404, detail="Explanation not found for this prediction.")
+    return {"explanation": explanation}
+
+
 @app.post("/api/applications/{application_id}/reviews")
 def submit_review(application_id: str, payload: ReviewSubmission, user: dict = Depends(_current_user)):
     _require_reviewer(user)
     application = _application_for_user(application_id, user)
     if application["status"] in {"approved", "rejected"}:
-        raise HTTPException(status_code=409, detail="Reassessment is required before another final review.")
+        raise HTTPException(status_code=409, detail="Finalized applications cannot be reviewed again.")
     predictions = datasets.list_predictions(application_id)
     prediction = next(
         (item for item in predictions if item["prediction_id"] == payload.prediction_id),
@@ -238,10 +353,13 @@ def submit_review(application_id: str, payload: ReviewSubmission, user: dict = D
             payload.review_notes,
             payload.override_reason,
             is_override,
+            expected_updated_at=application["updated_at"],
+            actor_version=user["version"],
         )
+    except AssignmentError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    datasets.add_audit_log(application_id, user["username"], "manual_review", application["status"], status)
     return {"review_id": review_id, "application_id": application_id, "is_override": is_override}
 
 
@@ -254,7 +372,99 @@ def get_reviews(application_id: str, user: dict = Depends(_current_user)):
 @app.get("/api/applications/{application_id}/audit")
 def get_audit(application_id: str, user: dict = Depends(_current_user)):
     _application_for_user(application_id, user)
-    return {"audit": datasets.list_audit_logs(application_id)}
+    return {"audit": [datasets.sanitize_audit(event) for event in datasets.list_audit_logs(application_id)]}
+
+
+@app.get("/api/reviewers/assigned")
+def get_assigned_applications(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), user: dict = Depends(_current_user)):
+    if user["role"] not in {"analyst", "reviewer", "admin"}:
+        raise HTTPException(status_code=403, detail="Staff access is required.")
+    return datasets.application_page(role=user["role"], username=user["username"], limit=limit, offset=offset)
+
+
+@app.get("/api/reviewers/pending")
+def get_pending_reviews(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), user: dict = Depends(_current_user)):
+    if user["role"] == "analyst":
+        return {"applications": [], "total": 0, "limit": limit, "offset": offset}
+    _require_reviewer(user)
+    return datasets.application_page(role=user["role"], username=user["username"], limit=limit, offset=offset, pending=True)
+
+
+@app.get("/api/reviewers/history")
+def get_review_history(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), user: dict = Depends(_current_user)):
+    if user["role"] == "analyst":
+        return {"history": [], "total": 0, "limit": limit, "offset": offset}
+    _require_reviewer(user)
+    return datasets.review_history_page(user["username"], limit, offset)
+
+
+@app.get("/api/admin/overview")
+def admin_portfolio_overview(user: dict = Depends(_current_user)):
+    """Return portfolio KPIs and reviewer workload for Admin role only."""
+    _require_admin(user)
+    return datasets.get_admin_portfolio_overview()
+
+
+@app.get("/api/admin/assignments")
+def admin_assignments(
+    limit: int = Query(default=25, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: dict = Depends(_current_user),
+):
+    _require_admin(user)
+    page = datasets.list_admin_assignments(limit, offset)
+    eligible = set(list_reviewers(user)["reviewers"])
+    page["reviewer_workload"] = [row for row in datasets.get_admin_portfolio_overview()["reviewer_workload"]
+                                 if row["username"] in eligible]
+    return page
+
+
+@app.patch("/api/admin/applications/{application_id}/assignment")
+def admin_reassign_application(application_id: str, payload: AssignmentUpdate, user: dict = Depends(_current_user)):
+    _require_admin(user)
+    try:
+        return datasets.reassign_application(
+            application_id, user["username"], payload.reviewer_username,
+            payload.reason, payload.expected_updated_at, actor_version=user["version"],
+        )
+    except AssignmentError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@app.get("/api/admin/users")
+def admin_users(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0),
+                user: dict = Depends(_current_user)):
+    _require_admin(user)
+    return datasets.list_users(limit, offset)
+
+
+@app.patch("/api/admin/users/{username}/role")
+def admin_user_role(username: str, payload: UserRoleUpdate, user: dict = Depends(_current_user)):
+    _require_admin(user)
+    return datasets.change_user(user["username"], user["version"], username,
+                                payload.expected_version, payload.reason, role=payload.role)
+
+
+@app.patch("/api/admin/users/{username}/status")
+def admin_user_status(username: str, payload: UserStatusUpdate, user: dict = Depends(_current_user)):
+    _require_admin(user)
+    return datasets.change_user(user["username"], user["version"], username,
+                                payload.expected_version, payload.reason, is_active=payload.is_active)
+
+
+@app.get("/api/admin/audit")
+def admin_audit(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0),
+                event_type: str | None = None, actor: str | None = None,
+                application_id: str | None = None, date_from: datetime | None = None,
+                date_to: datetime | None = None, user: dict = Depends(_current_user)):
+    _require_admin(user)
+    def utc(value):
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+    start, end = utc(date_from) if date_from else None, utc(date_to) if date_to else None
+    if start and end and start > end:
+        raise HTTPException(status_code=422, detail="date_from must precede date_to.")
+    return datasets.list_admin_audit(limit, offset, event_type, actor, application_id,
+                                    start.isoformat() if start else None, end.isoformat() if end else None)
 
 
 def _prediction_result(raw_data: dict) -> PredictionResponse:
@@ -342,7 +552,7 @@ def _dataset_payload(dataset_id, filename, dataframe, applicants):
 
 
 @app.post("/api/manual-assessment", response_model=PredictionResponse)
-def manual_assessment(data: ApplicationSchema, _: str = Depends(require_auth)):
+def manual_assessment(data: ApplicationSchema, _: str = Depends(_analyst_username)):
     try:
         return _prediction_result(data.model_dump())
     except Exception as exc:
@@ -351,7 +561,7 @@ def manual_assessment(data: ApplicationSchema, _: str = Depends(require_auth)):
 
 
 @app.get("/api/default-data")
-def default_data(_: str = Depends(require_auth)):
+def default_data(_: str = Depends(_analyst_username)):
     dataframe, applicants = _demo_dataset()
     return _dataset_payload("default-demo", "Current dataset (model_test_cases.csv)", dataframe, applicants)
 
@@ -380,21 +590,24 @@ def _predict_dataset_applicant(dataset_id, applicant_id, owner):
 
 
 @app.post("/api/default-data/applicants/{applicant_id}/predict", response_model=ApplicantAssessmentResponse)
-def predict_default_applicant(applicant_id: str, owner: str = Depends(require_auth)):
+def predict_default_applicant(applicant_id: str, owner: str = Depends(_analyst_username)):
     return _predict_dataset_applicant("default-demo", applicant_id, owner)
 
 
 async def _upload_csv(file: UploadFile, owner: str, add_to_current: bool = False):
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a CSV file.")
+    contents = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="CSV uploads are limited to 1 MiB.")
     try:
-        dataframe = pd.read_csv(io.BytesIO(await file.read()))
+        dataframe = pd.read_csv(io.BytesIO(contents))
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Could not read CSV: {exc}") from exc
     if dataframe.empty:
         raise HTTPException(status_code=400, detail="The uploaded CSV has no rows.")
-    if len(dataframe) > 1000:
-        raise HTTPException(status_code=400, detail="CSV files are limited to 1,000 applicants.")
+    if len(dataframe) > MAX_BATCH_ROWS:
+        raise HTTPException(status_code=400, detail=f"CSV files are limited to {MAX_BATCH_ROWS} applicants.")
 
     try:
         dataset_id = uuid.uuid4().hex
@@ -467,7 +680,7 @@ async def _upload_csv(file: UploadFile, owner: str, add_to_current: bool = False
 async def csv_analysis(
     file: UploadFile = File(...),
     add_to_current: bool = Form(False),
-    owner: str = Depends(require_auth),
+    owner: str = Depends(_analyst_username),
 ):
     return await _upload_csv(file, owner, add_to_current)
 
@@ -476,35 +689,35 @@ async def csv_analysis(
 async def upload_csv(
     file: UploadFile = File(...),
     add_to_current: bool = Form(False),
-    owner: str = Depends(require_auth),
+    owner: str = Depends(_analyst_username),
 ):
     return await _upload_csv(file, owner, add_to_current)
 
 
 @app.post("/api/datasets/{dataset_id}/applicants/{applicant_id}/predict", response_model=ApplicantAssessmentResponse)
 def predict_uploaded_applicant(
-    dataset_id: str, applicant_id: str, owner: str = Depends(require_auth)
+    dataset_id: str, applicant_id: str, owner: str = Depends(_analyst_username)
 ):
     return _predict_dataset_applicant(dataset_id, applicant_id, owner)
 
 
 @app.post("/predict", response_model=PredictionResponse)
-def predict_single(data: ApplicationSchema, _: str = Depends(require_auth)):
+def predict_single(data: ApplicationSchema, _: str = Depends(_analyst_username)):
     return manual_assessment(data, _)
 
 
 @app.post("/predict_batch")
 def predict_batch(
-    data: Annotated[List[ApplicationSchema], Body(min_length=1, max_length=1000)],
-    _: str = Depends(require_auth),
+    data: Annotated[List[ApplicationSchema], Body(min_length=1, max_length=MAX_BATCH_ROWS)],
+    _: str = Depends(_analyst_username),
 ):
     return [_prediction_result(item.model_dump()).model_dump() for item in data]
 
 
 @app.post("/predict_batch_analysis")
 def predict_batch_analysis(
-    data: Annotated[List[ApplicationSchema], Body(min_length=1, max_length=1000)],
-    _: str = Depends(require_auth),
+    data: Annotated[List[ApplicationSchema], Body(min_length=1, max_length=MAX_BATCH_ROWS)],
+    _: str = Depends(_analyst_username),
 ):
     applications = [item.model_dump() for item in data]
     results = [_prediction_result(item).model_dump() for item in applications]
@@ -518,7 +731,8 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         content={
             "error": "validation_error",
             "message": "Input values do not match the supported applicant schema.",
-            "fields": exc.errors(),
+            "fields": [{key: error[key] for key in ("loc", "msg", "type")}
+                       for error in exc.errors()],
         },
     )
 

@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -60,8 +60,32 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=200)
 
 
+class ApplicantInput(ApplicationSchema):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid", allow_inf_nan=False)
+    APPROVE_THRESHOLD: ClassVar[None] = None
+    DECLINE_THRESHOLD: ClassVar[None] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_internal_thresholds(cls, values):
+        if isinstance(values, dict) and any(name in values for name in ("APPROVE_THRESHOLD", "DECLINE_THRESHOLD")):
+            raise ValueError("Applicants cannot supply assessment thresholds")
+        return values
+
+
+class ApplicantSubmission(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    applicant_snapshot: ApplicantInput
+
+
+class IntakeClaim(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    expected_updated_at: str = Field(min_length=1, max_length=100)
+    reviewer_username: str = Field(min_length=1, max_length=100)
+
+
 class RegisterRequest(LoginRequest):
-    pass
+    model_config = ConfigDict(extra="forbid")
 
 
 class ApplicationSubmissionRequest(BaseModel):
@@ -77,3 +101,25 @@ class ReviewSubmission(BaseModel):
     reviewer_decision: Literal["approved", "rejected", "request_information"]
     review_notes: str = ""
     override_reason: str | None = None
+
+
+class AssignmentUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    reviewer_username: str = Field(min_length=1, max_length=100)
+    reason: str = Field(min_length=1, max_length=2000)
+    expected_updated_at: str = Field(min_length=1, max_length=100)
+
+
+class UserChange(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    reason: str = Field(min_length=1, max_length=2000)
+    expected_version: int = Field(ge=0, strict=True)
+
+
+class UserRoleUpdate(UserChange):
+    role: Literal["analyst", "reviewer", "admin"]
+
+
+class UserStatusUpdate(UserChange):
+    is_active: bool = Field(strict=True)

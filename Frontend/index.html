@@ -9,24 +9,84 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">◆</span><div><strong>Credit Risk</strong><small>INTELLIGENCE DESK</small></div></div>
-    <div id="sessionActions" class="session-actions"><span class="model-status"><i></i> Calibrated model online</span><button id="logout" class="secondary">Logout</button></div>
+    <div id="sessionActions" class="session-actions hidden"><span class="model-status"><i></i> Calibrated model online</span><span id="roleBadge" class="role-badge hidden"></span><button id="logout" class="secondary">Logout</button></div>
   </header>
   <main class="shell">
     <section id="loginPanel" class="login-panel">
-      <div><p class="eyebrow">SECURE WORKSPACE</p><h2>Sign in to continue</h2><p class="muted">Use your analyst credentials to access assessments and applicant data.</p><p id="loginMessage" class="bad"></p></div>
-      <form id="loginForm" class="login-form"><input id="username" placeholder="Username" autocomplete="username" required><input id="password" type="password" placeholder="Password" autocomplete="current-password" required><button class="primary" type="submit">Sign in →</button><button class="secondary" id="registerButton" type="button">Create account</button></form>
+      <div><p class="eyebrow">SECURE WORKSPACE</p><h2 id="authTitle">Sign in to continue</h2><p class="muted" id="authSubtitle">Applicant, Analyst, Reviewer, and Admin accounts use the same secure sign-in. Your workspace opens automatically after verification.</p><div class="auth-tabs" role="tablist" aria-label="Authentication"><button id="loginTab" class="auth-tab active" type="button" role="tab" aria-selected="true">Login</button><button id="registerTab" class="auth-tab" type="button" role="tab" aria-selected="false">Create account</button></div><p id="loginMessage" class="bad" role="alert"></p></div>
+      <div class="auth-forms">
+        <div id="recruiterDemo" class="recruiter-demo hidden"><h3>Explore RiskXplain</h3><p class="muted">One-click, read-only workspaces with fictional applications. No password needed.</p><div class="demo-buttons"><button type="button" class="secondary" data-demo-role="applicant">Applicant demo</button><button type="button" class="secondary" data-demo-role="analyst">Analyst demo</button><button type="button" class="secondary" data-demo-role="reviewer">Reviewer demo</button><button type="button" class="secondary" data-demo-role="admin">Admin overview</button></div><p class="muted">To submit your own fictional application, choose Create account.</p></div>
+        <form id="loginForm" class="login-form"><input id="username" placeholder="Username" autocomplete="username" required><input id="password" type="password" placeholder="Password" autocomplete="current-password" required><button class="primary" type="submit">Sign in →</button></form>
+        <form id="registerForm" class="login-form hidden"><input id="registerUsername" placeholder="Choose a username" autocomplete="username" required><input id="registerPassword" type="password" placeholder="Password" autocomplete="new-password" required><input id="registerConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" required><button class="primary" type="submit">Create account →</button><p class="muted">New accounts are Applicants. Staff access is provisioned separately.</p></form>
+      </div>
     </section>
+    <p id="demoNotice" class="demo-notice hidden" role="status">Read-only recruiter demo · Fictional data only. Account changes, assignments, assessments and decisions are disabled. Logout and create your own Applicant account to submit a fictional application.</p>
     <div id="workspace" class="hidden app-shell">
       <aside class="sidebar">
         <p class="eyebrow">WORKSPACE</p>
-        <button data-page="manualPage">Manual assessment</button>
-        <button id="defaultLink" data-page="dashboardPage">Current dataset</button>
-        <button data-page="uploadPage">Upload CSV</button>
-        <button data-page="settingsPage">⚙️ Settings</button>
+        <nav id="applicantNav" class="nav-group hidden" aria-label="Applicant workspace">
+          <button data-page="applicantNewPage">New application</button>
+          <button data-page="applicantApplicationsPage">My applications</button>
+        </nav>
+        <nav id="analystNav" class="nav-group hidden" aria-label="Analyst workspace">
+          <button data-page="manualPage">Manual assessment</button>
+          <button id="defaultLink" data-page="dashboardPage">Current dataset</button>
+          <button data-page="loanApplicationsPage">Loan applications</button>
+          <button data-page="analystIntakePage">Applicant intake</button>
+          <button data-page="uploadPage">Upload CSV</button>
+          <button data-page="settingsPage">⚙️ Settings</button>
+        </nav>
+        <nav id="reviewerNav" class="nav-group hidden" aria-label="Reviewer workspace">
+          <button data-page="reviewerAssignedPage">Assigned applications</button>
+          <button data-page="reviewerPendingPage">Pending reviews</button>
+          <button data-page="reviewerHistoryPage">Review history</button>
+        </nav>
+        <nav id="adminNav" class="nav-group hidden" aria-label="Admin workspace">
+          <button data-page="adminOversightPage">Portfolio oversight</button>
+          <button data-page="adminUsersPage">User management</button>
+          <button data-page="adminAssignmentsPage">Assignment management</button>
+          <button data-page="adminAuditPage">Audit activity</button>
+        </nav>
       </aside>
       <section class="content">
         <div id="message" class="message hidden"></div>
-        <section id="manualPage" class="page">
+        <section id="applicantNewPage" class="page hidden" data-role="applicant">
+          <div class="section-heading"><div><p class="eyebrow">LOAN APPLICATION</p><h1>New application</h1><p class="muted">Submit your information for staff review. This demonstration uses self-reported financial information.</p></div></div>
+          <form id="applicantForm" class="form-card">
+                <div class="form-grid">
+                  <label>Gender<select name="GENDER"><option>M</option><option>F</option><option>X</option></select></label>
+                  <label>Qualification<select name="QUALIFICATION"><option>Secondary / secondary special</option><option selected>Higher education</option><option>Incomplete higher</option><option>Lower secondary</option><option>Academic degree</option></select></label>
+                  <label>Family status<select name="FAMILY_STATUS"><option>Married</option><option selected>Single / not married</option><option>Civil marriage</option><option>Separated</option><option>Widow</option></select></label>
+                  <label>Occupation<select name="OCCUPATION"><option>Laborers</option><option selected>Core staff</option><option>Sales staff</option><option>Managers</option><option>Drivers</option><option>High skill tech staff</option><option>Accountants</option><option>Medicine staff</option><option>Security staff</option><option>Cooking staff</option></select></label>
+                  <label>Contract type<select name="CONTRACT_TYPE"><option selected>Cash loans</option><option>Revolving loans</option></select></label>
+                  <label>Total income<input name="TOTAL_INCOME" type="number" min="1" value="50000" required></label>
+                  <label>Credit amount<input name="CREDIT_AMOUNT" type="number" min="1" value="150000" required></label>
+                  <label>Annual loan payment<input name="ANNUAL_LOAN_PAYMENT" type="number" min="1" value="12000" required></label>
+                  <label>Goods price<input name="GOODS_PRICE" type="number" min="1" value="150000" required></label>
+                  <label>Age<input name="AGE" type="number" min="18" max="100" value="30" required></label>
+                  <label>Years of experience<input name="YEARS_OF_EXPERIENCE" type="number" min="0" step="0.1" value="5" required></label>
+                  <label>Credit score<input name="CREDIT_SCORE" type="number" min="300" max="850" value="710" required></label>
+                  <label>Credit history<select name="CREDIT_HISTORY"><option value="0" selected>0 — clean</option><option value="1">1 — delinquent</option></select></label>
+                </div>
+            <button id="applicantSubmit" class="primary form-submit" type="submit">Submit application</button><p id="applicantSubmitFeedback" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+        <section id="applicantApplicationsPage" class="page hidden" data-role="applicant">
+          <div class="section-heading"><h1>My applications</h1><button id="applicantRefresh" class="secondary" type="button">Refresh</button></div><p id="applicantFeedback" role="status" aria-live="polite"></p>
+          <div class="table-wrap" role="region" aria-label="My loan applications" tabindex="0"><table><thead><tr><th>Application ID</th><th>Submitted</th><th>Loan amount</th><th>Progress</th><th>Action</th></tr></thead><tbody id="portalApplicantRows"></tbody></table></div>
+          <div class="assignment-pagination"><button id="applicantPrev" class="secondary" type="button">Previous</button><span id="applicantPageInfo" role="status"></span><button id="applicantNext" class="secondary" type="button">Next</button></div>
+        </section>
+        <section id="applicantDetailPage" class="page hidden" data-role="applicant">
+          <div class="section-heading"><h1>Application status</h1><div class="admin-actions"><button data-page="applicantApplicationsPage" class="secondary" type="button">Back to applications</button><button id="applicantDetailRefresh" class="secondary" type="button">Refresh status</button></div></div>
+          <p id="applicantDetailFeedback" role="status" aria-live="polite"></p><article id="applicantDetail" class="panel"></article>
+        </section>
+        <section id="analystIntakePage" class="page hidden" data-role="analyst">
+          <div class="section-heading"><div><h1>Applicant intake</h1><p class="muted">Select an active Reviewer, then claim a submission to open its financial profile and run assessment.</p></div><button id="intakeRefresh" class="secondary" type="button">Refresh intake</button></div>
+          <label class="portal-reviewer">Reviewer for new claim<select id="intakeReviewer" required><option value="">Select active Reviewer...</option></select></label><p id="intakeFeedback" role="status" aria-live="polite"></p>
+          <div class="table-wrap" role="region" aria-label="Unclaimed applicant submissions" tabindex="0"><table><thead><tr><th>Application ID</th><th>Applicant</th><th>Submitted</th><th>Action</th></tr></thead><tbody id="intakeRows"></tbody></table></div>
+          <div class="assignment-pagination"><button id="intakePrev" class="secondary" type="button">Previous</button><span id="intakePageInfo" role="status"></span><button id="intakeNext" class="secondary" type="button">Next</button></div>
+        </section>
+        <section id="manualPage" class="page" data-role="analyst">
           <div class="section-heading"><div><p class="eyebrow">INDIVIDUAL REVIEW</p><h1>Manual assessment</h1><p class="muted">Validate one applicant and receive a model decision with SHAP explanations.</p></div></div>
           <form id="manualForm" class="form-card">
             <h3>Applicant profile</h3><div class="form-grid">
@@ -37,7 +97,7 @@
             <button class="primary form-submit" type="submit">Run manual assessment →</button>
           </form>
         </section>
-        <section id="dashboardPage" class="page hidden">
+        <section id="dashboardPage" class="page hidden" data-role="analyst">
           <div class="section-heading"><div><p class="eyebrow">PORTFOLIO ANALYSIS</p><h1 id="datasetTitle">Portfolio analysis</h1></div></div>
           <div id="metrics" class="metrics"></div>
           <div class="analysis-grid">
@@ -53,11 +113,11 @@
           <div class="applicant-tools"><input id="applicantSearch" class="search" placeholder="Search applicant ID"><select id="riskFilter"><option value="">All risk</option><option value="Low Risk">Low risk</option><option value="Manual Review">Review</option><option value="High Risk">High risk</option></select><select id="occupationFilter"><option value="">All occupations</option></select><select id="contractFilter"><option value="">All contract types</option></select><select id="sortApplicants"><option value="risk-desc">Highest risk</option><option value="risk-asc">Lowest risk</option><option value="score-desc">Credit score</option><option value="amount-desc">Credit amount</option></select></div>
           <div class="table-wrap"><table><thead><tr><th>Applicant ID</th><th>Occupation</th><th>Contract type</th><th>Credit score</th><th>Credit amount</th><th>Default risk</th><th>Risk tier</th><th>Action</th></tr></thead><tbody id="applicantRows"></tbody></table></div>
         </section>
-        <section id="uploadPage" class="page hidden">
+        <section id="uploadPage" class="page hidden" data-role="analyst">
           <div class="section-heading"><div><p class="eyebrow">DATA IMPORT</p><h1>Analyze a CSV portfolio</h1><p class="muted">Rows are validated before storage. Invalid rows remain visible but cannot be assessed.</p></div></div>
-          <div class="upload-card"><label class="drop-zone"><input id="csvFile" type="file" accept=".csv"><span class="upload-icon">↑</span><strong>Choose a CSV file</strong><small>Up to 1,000 applicants</small></label><label><input id="addToCurrent" type="checkbox"> Add valid rows to the current dataset</label><button class="primary" id="uploadButton">Analyze portfolio →</button><p id="fileName" class="file-name"></p></div>
+          <div class="upload-card"><label class="drop-zone"><input id="csvFile" type="file" accept=".csv"><span class="upload-icon">↑</span><strong>Choose a CSV file</strong><small>Up to 50 applicants · 1 MiB</small></label><label><input id="addToCurrent" type="checkbox"> Add valid rows to the current dataset</label><button class="primary" id="uploadButton">Analyze portfolio →</button><p id="fileName" class="file-name"></p></div>
         </section>
-        <section id="settingsPage" class="page hidden">
+        <section id="settingsPage" class="page hidden" data-role="analyst">
           <div class="section-heading"><div><p class="eyebrow">SYSTEM SETTINGS</p><h1>Decision Thresholds</h1><p class="muted">Configure the default probability thresholds for Auto-Approve and Auto-Decline.</p></div></div>
           <form id="settingsForm" class="form-card">
             <h3>Decision Risk Tiers</h3>
@@ -69,10 +129,233 @@
             <button class="primary form-submit" type="submit">Save settings →</button>
           </form>
         </section>
+        <section id="loanApplicationsPage" class="page hidden" data-role="analyst">
+          <div class="section-heading"><div><p class="eyebrow">LOAN APPLICATIONS</p><h1>Analyst applications</h1><p class="muted">Create an application, assign a reviewer, then run the existing ML assessment.</p></div><div><button class="secondary" id="refreshApplications" type="button">Refresh list</button></div></div>
+          <div class="analysis-grid">
+            <article class="panel"><h3>New application</h3>
+              <form id="loanApplicationForm" class="login-form">
+                <label>Reviewer<select id="loanReviewer" required><option value="">Select reviewer…</option></select></label>
+                <div class="form-grid">
+                  <label>Gender<select name="GENDER"><option>M</option><option>F</option><option>X</option></select></label>
+                  <label>Qualification<select name="QUALIFICATION"><option>Secondary / secondary special</option><option selected>Higher education</option><option>Incomplete higher</option><option>Lower secondary</option><option>Academic degree</option></select></label>
+                  <label>Family status<select name="FAMILY_STATUS"><option>Married</option><option selected>Single / not married</option><option>Civil marriage</option><option>Separated</option><option>Widow</option></select></label>
+                  <label>Occupation<select name="OCCUPATION"><option>Laborers</option><option selected>Core staff</option><option>Sales staff</option><option>Managers</option><option>Drivers</option><option>High skill tech staff</option><option>Accountants</option><option>Medicine staff</option><option>Security staff</option><option>Cooking staff</option></select></label>
+                  <label>Contract type<select name="CONTRACT_TYPE"><option selected>Cash loans</option><option>Revolving loans</option></select></label>
+                  <label>Total income<input name="TOTAL_INCOME" type="number" min="1" value="50000" required></label>
+                  <label>Credit amount<input name="CREDIT_AMOUNT" type="number" min="1" value="150000" required></label>
+                  <label>Annual loan payment<input name="ANNUAL_LOAN_PAYMENT" type="number" min="1" value="12000" required></label>
+                  <label>Goods price<input name="GOODS_PRICE" type="number" min="1" value="150000" required></label>
+                  <label>Age<input name="AGE" type="number" min="18" max="100" value="30" required></label>
+                  <label>Years of experience<input name="YEARS_OF_EXPERIENCE" type="number" min="0" step="0.1" value="5" required></label>
+                  <label>Credit score<input name="CREDIT_SCORE" type="number" min="300" max="850" value="710" required></label>
+                  <label>Credit history<select name="CREDIT_HISTORY"><option value="0" selected>0 — clean</option><option value="1">1 — delinquent</option></select></label>
+                </div>
+                <button class="primary" id="createApplicationButton" type="submit">Submit application →</button>
+                <p id="loanCreateMessage" class="muted" role="status"></p>
+              </form>
+            </article>
+            <article class="panel"><h3>Application detail</h3><div id="loanDetail"><p class="muted">Select an application to view status and assessment.</p></div>
+              <button class="primary" id="assessApplicationButton" type="button" disabled>Run ML assessment →</button>
+              <p id="loanAssessMessage" class="muted" role="status"></p>
+            </article>
+          </div>
+          <article class="panel wide"><h3>Submitted applications</h3><div class="table-wrap"><table><thead><tr><th>Application ID</th><th>Created</th><th>Reviewer</th><th>Status</th><th>Assessments</th><th>Action</th></tr></thead><tbody id="loanApplicationRows"><tr><td colspan="6">Open this workspace to load applications.</td></tr></tbody></table></div><div class="assignment-pagination"><button id="loanPrev" class="secondary" type="button">Previous</button><span id="loanPageInfo" role="status"></span><button id="loanNext" class="secondary" type="button">Next</button></div></article>
+        </section>
+        <section id="reviewerAssignedPage" class="page hidden" data-role="reviewer">
+          <div class="section-heading"><div><p class="eyebrow">REVIEWER WORKSPACE</p><h1>Assigned applications</h1><p class="muted">Applications assigned to you for review will appear here.</p></div></div>
+          <div id="reviewerAssignedContainer" class="panel">
+            <div class="table-wrap">
+              <table id="assignedApplicationsTable">
+                <thead>
+                  <tr>
+                    <th>Application ID</th>
+                    <th>Submitted</th>
+                    <th>Analyst</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="assignedApplicationsBody">
+                  <tr><td colspan="5">Loading assigned applications...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="assignment-pagination"><button id="reviewerAssignedPrev" class="secondary" type="button">Previous</button><span id="reviewerAssignedPageInfo" role="status"></span><button id="reviewerAssignedNext" class="secondary" type="button">Next</button><button id="reviewerAssignedRefresh" class="secondary" type="button">Refresh</button></div>
+        </section>
+        <section id="reviewerPendingPage" class="page hidden" data-role="reviewer">
+          <div class="section-heading"><div><p class="eyebrow">REVIEWER WORKSPACE</p><h1>Pending reviews</h1><p class="muted">Items awaiting your decision will appear here.</p></div></div>
+          <div id="reviewerPendingContainer" class="panel">
+            <div class="table-wrap">
+              <table id="pendingReviewsTable">
+                <thead>
+                  <tr>
+                    <th>Application ID</th>
+                    <th>Submitted</th>
+                    <th>Analyst</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="pendingReviewsBody">
+                  <tr><td colspan="5">Loading pending reviews...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="assignment-pagination"><button id="reviewerPendingPrev" class="secondary" type="button">Previous</button><span id="reviewerPendingPageInfo" role="status"></span><button id="reviewerPendingNext" class="secondary" type="button">Next</button><button id="reviewerPendingRefresh" class="secondary" type="button">Refresh</button></div>
+        </section>
+        <section id="reviewerHistoryPage" class="page hidden" data-role="reviewer">
+          <div class="section-heading"><div><p class="eyebrow">REVIEWER WORKSPACE</p><h1>Review history</h1><p class="muted">Your completed reviews will appear here.</p></div></div>
+          <div id="reviewerHistoryContainer" class="panel">
+            <div class="table-wrap">
+              <table id="reviewHistoryTable">
+                <thead>
+                  <tr>
+                    <th>Application ID</th>
+                    <th>Decision</th>
+                    <th>Review Date</th>
+                    <th>Override</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="reviewHistoryBody">
+                  <tr><td colspan="5">Loading review history...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="assignment-pagination"><button id="reviewerHistoryPrev" class="secondary" type="button">Previous</button><span id="reviewerHistoryPageInfo" role="status"></span><button id="reviewerHistoryNext" class="secondary" type="button">Next</button><button id="reviewerHistoryRefresh" class="secondary" type="button">Refresh</button></div>
+        </section>
+        <!-- Reviewer application detail view (same content area as Analyst) -->
+        <section id="reviewDetailPage" class="page hidden" data-role="reviewer">
+          <div class="section-heading"><div><p class="eyebrow">REVIEWER WORKSPACE</p><h1>Application Review</h1><p class="muted" id="reviewDetailAppInfo"></p></div></div>
+          <div id="reviewDetailContainer" class="panel">
+            <div id="reviewFinancialInfo" class="panel"></div>
+            <div id="reviewPredictionInfo" class="panel"></div>
+            <div id="reviewShapInfo" class="panel"></div>
+            <div id="reviewExistingHistory" class="panel hidden"></div>
+            <div id="reviewDecisionActions" class="panel"></div>
+          </div>
+        </section>
+        <section id="adminOversightPage" class="page hidden" data-role="admin">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">ADMIN WORKSPACE</p>
+              <h1>Portfolio Oversight</h1>
+              <p class="muted">Operational summary of all loan applications and reviewer activity.</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+              <span id="adminLastRefreshed" class="muted" style="font-size:12px;"></span>
+              <button id="btnRefreshAdminOverview" class="secondary" style="padding:9px 16px;font-size:13px;">↻ Refresh</button>
+            </div>
+          </div>
+
+          <!-- Error banner -->
+          <div id="adminErrorBanner" class="message hidden" role="alert"></div>
+
+          <!-- Loading spinner -->
+          <div id="adminLoadingSpinner" style="text-align:center;padding:40px 0;color:var(--muted);">
+            <span style="font-size:28px;">⏳</span><p>Loading portfolio overview…</p>
+          </div>
+
+          <!-- Main content (hidden while loading) -->
+          <div id="adminOverviewContent" class="hidden">
+
+            <!-- KPI Cards -->
+            <div id="adminKpiGrid" class="metrics" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:22px;"></div>
+
+            <!-- Charts + Workload row -->
+            <div class="analysis-grid" style="margin-bottom:22px;">
+
+              <!-- Status Distribution -->
+              <article class="panel">
+                <h3>Application Status Distribution</h3>
+                <div id="adminStatusChart"></div>
+              </article>
+
+              <!-- Reviewer Workload -->
+              <article class="panel">
+                <h3>Reviewer Workload</h3>
+                <div id="adminReviewerWorkload"></div>
+              </article>
+            </div>
+
+            <!-- Recent Applications -->
+            <article class="panel panel-wide">
+              <h3>Recent Applications <span class="subtle" style="font-weight:400;font-size:12px;">(last 10)</span></h3>
+              <div id="adminRecentApplications"></div>
+            </article>
+
+          </div>
+        </section>
+        <section id="adminUsersPage" class="page hidden" data-role="admin">
+          <div class="section-heading"><div><p class="eyebrow">ADMIN WORKSPACE</p><h1>User management</h1><p class="muted">Manage staff access with a recorded reason for each change.</p></div><button id="adminUsersRefresh" class="secondary" type="button">Refresh staff</button></div>
+          <p id="adminUsersFeedback" class="message hidden" role="status" aria-live="polite" tabindex="-1"></p>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Staff directory"><table>
+            <thead><tr><th scope="col">Username</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Created (UTC)</th><th scope="col">Actions</th></tr></thead>
+            <tbody id="adminUsersRows"></tbody>
+          </table></div>
+          <div class="assignment-pagination"><button id="adminUsersPrevious" type="button" class="secondary">Previous</button><span id="adminUsersPageInfo" class="muted" aria-live="polite"></span><button id="adminUsersNext" type="button" class="secondary">Next</button></div>
+          <p class="muted">Your own role and active status are protected. Reassign a Reviewer's pending applications before deactivating them or changing their role.</p>
+          <article id="adminUserDetail" class="panel hidden admin-detail"><h3 id="adminUserSelected" tabindex="-1"></h3>
+            <form id="adminUserForm" class="assignment-form">
+              <label id="adminUserRoleLabel">New role<select id="adminUserRole"><option value="">Choose a role…</option><option value="analyst">Analyst</option><option value="reviewer">Reviewer</option><option value="admin">Admin</option></select></label>
+              <p id="adminUserStatusDescription" class="muted hidden"></p>
+              <label>Reason<textarea id="adminUserReason" required maxlength="2000" rows="3" placeholder="Explain this access change" aria-describedby="adminUserSessionNotice"></textarea></label>
+              <p id="adminUserSessionNotice" class="muted">This change ends the target account's existing sessions. They must sign in again if the account remains active.</p>
+              <div class="admin-actions"><button id="adminUserSubmit" class="primary" type="submit">Review and confirm change</button><button id="adminUserCancel" class="secondary" type="button">Cancel</button></div>
+            </form>
+          </article>
+        </section>
+        <section id="adminAssignmentsPage" class="page hidden" data-role="admin">
+          <div class="section-heading"><div><p class="eyebrow">ADMIN WORKSPACE</p><h1>Assignment management</h1><p class="muted">Balance reviewer workloads with a recorded reason for every change.</p></div><button id="adminAssignmentRefresh" class="secondary" type="button">Refresh</button></div>
+          <p id="adminAssignmentFeedback" class="message hidden" role="status" aria-live="polite"></p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Application ID</th><th>Creator</th><th>Current reviewer</th><th>Status</th><th>Submitted</th><th>Assignment</th></tr></thead>
+            <tbody id="adminAssignmentRows"></tbody>
+          </table></div>
+          <div class="assignment-pagination"><button id="adminAssignmentPrevious" type="button" class="secondary">Previous</button><span id="adminAssignmentPageInfo" class="muted" aria-live="polite"></span><button id="adminAssignmentNext" type="button" class="secondary">Next</button></div>
+          <article class="panel"><h3>Reviewer workloads</h3><div id="adminAssignmentWorkloads"></div></article>
+          <article id="adminAssignmentDetail" class="panel hidden" style="margin-top:18px;">
+            <h3>Selected application</h3><p id="adminAssignmentSelected" class="muted"></p>
+            <form id="adminAssignmentForm" class="assignment-form">
+              <label>New reviewer<select id="adminAssignmentReviewer" required></select></label>
+              <label>Reason for reassignment<textarea id="adminAssignmentReason" required maxlength="2000" rows="3" placeholder="Explain why this assignment should change"></textarea></label>
+              <button id="adminAssignmentSubmit" type="submit" class="primary">Confirm assignment change</button>
+            </form>
+            <p id="adminAssignmentUnavailable" class="muted hidden">This application has a final decision and cannot be reassigned.</p>
+            <h3 style="margin-top:22px;">Assignment history</h3><div id="adminAssignmentHistory" aria-live="polite"></div>
+          </article>
+        </section>
+        <section id="adminAuditPage" class="page hidden" data-role="admin">
+          <div class="section-heading"><div><p class="eyebrow">ADMIN WORKSPACE</p><h1>Audit activity</h1><p class="muted">Read-only history of application operations and staff access changes.</p></div><button id="adminAuditRefresh" class="secondary" type="button">Refresh events</button></div>
+          <form id="adminAuditFilters" class="panel admin-filters">
+            <label>Event type<select id="adminAuditEvent"><option value="">All events</option><option value="application_created">Application created</option><option value="prediction_generated">Prediction generated</option><option value="analyst_claimed">Analyst claimed</option><option value="assignment_changed">Assignment changed</option><option value="manual_review">Manual review</option><option value="user_role_changed">User role changed</option><option value="user_activated">User activated</option><option value="user_deactivated">User deactivated</option></select></label>
+            <label>Actor<input id="adminAuditActor" maxlength="100" placeholder="Exact username"></label>
+            <label>Application ID<input id="adminAuditApplication" placeholder="Exact application ID"></label>
+            <label>From (UTC)<input id="adminAuditFrom" type="datetime-local" step="1"></label>
+            <label>Through (UTC)<input id="adminAuditTo" type="datetime-local" step="1"></label>
+            <div class="admin-actions"><button class="primary" type="submit">Apply filters</button><button id="adminAuditReset" class="secondary" type="button">Clear filters</button></div>
+          </form>
+          <p id="adminAuditFeedback" class="message hidden" role="status" aria-live="polite" tabindex="-1"></p>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Audit events"><table>
+            <thead><tr><th scope="col">Timestamp (UTC)</th><th scope="col">Actor</th><th scope="col">Event</th><th scope="col">Target</th><th scope="col">Sanitized details</th></tr></thead>
+            <tbody id="adminAuditRows"></tbody>
+          </table></div>
+          <div class="assignment-pagination"><button id="adminAuditPrevious" class="secondary" type="button">Previous</button><span id="adminAuditPageInfo" class="muted" aria-live="polite"></span><button id="adminAuditNext" class="secondary" type="button">Next</button></div>
+        </section>
       </section>
     </div>
   </main>
   <dialog id="resultDialog"><button class="dialog-close" id="closeDialog">×</button><div id="resultContent"></div></dialog>
+  <dialog id="adminUserConfirmation" aria-labelledby="adminUserConfirmationTitle" aria-describedby="adminUserConfirmationText">
+    <div class="result"><h2 id="adminUserConfirmationTitle">Confirm account change</h2><p id="adminUserConfirmationText" class="admin-confirm-text"></p>
+      <p class="muted">The change will be recorded in audit history and end the target account's existing sessions.</p>
+      <div class="admin-actions"><button id="adminUserConfirmationCancel" class="secondary" type="button" autofocus>Cancel</button><button id="adminUserConfirmationAccept" class="primary" type="button">Confirm change</button></div>
+    </div>
+  </dialog>
   <script type="module" src="/static/js/main.js"></script>
+<dialog id="portalConfirmation" aria-labelledby="portalConfirmationTitle"><h2 id="portalConfirmationTitle">Confirm application claim</h2><p id="portalConfirmationText" class="admin-confirm-text"></p><div class="admin-actions"><button id="portalConfirmCancel" class="secondary" type="button">Cancel</button><button id="portalConfirmAccept" class="primary" type="button">Confirm claim</button></div></dialog>
 </body>
 </html>
