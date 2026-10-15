@@ -66,8 +66,9 @@ async function run() {
   const beforeDemoGuard = requests.length;
   await assert.rejects(api.updateUserRole('target', { role: 'admin', reason: 'blocked', expected_version: 0 }), /read-only/);
   assert.equal(requests.length, beforeDemoGuard, 'Demo mutation reached the network');
-  await api.demoLogin('reviewer');
-  assert.equal(requests.at(-1).url, '/auth/demo/reviewer');
+  await api.login('reviewer', 'private-test-password');
+  assert.equal(requests.at(-1).url, '/auth/login');
+  assert(!html.includes('data-demo-role')); assert(!html.includes('id="demoNotice"'));
   setReadOnlyDemo(false); setToken('private-staff');
   await api.updateUserRole('target', { role: 'reviewer', reason: 'private-session', expected_version: 0 });
   assert.equal(requests.length, beforeDemoGuard + 2, 'Normal session retained demo restrictions');

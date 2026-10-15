@@ -40,8 +40,6 @@ async function request(url, options = {}) {
 }
 
 export const api = {
-  demoAvailability: () => request("/auth/demo"),
-  demoLogin: role => request(`/auth/demo/${encodeURIComponent(role)}`, { method: "POST" }),
   login: (username, password) => request("/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -102,6 +100,7 @@ export const api = {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
   }),
+  analystPortfolio: () => request("/api/analyst/portfolio"),
   defaultData: () => request("/api/default-data"),
   uploadCsv: (file, addToCurrent) => {
     const form = new FormData();

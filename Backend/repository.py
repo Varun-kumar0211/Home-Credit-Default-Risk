@@ -1191,6 +1191,17 @@ class DatasetRepository:
         return {"application_id": application_id, "assigned_reviewer": reviewer_username,
                 "previous_reviewer": old_reviewer, "status": status, "updated_at": now}
 
+    def get_analyst_portfolio_summary(self):
+        """Aggregate outcomes only; no unrelated applicant identities or finances."""
+        with self._connection() as connection:
+            counts = dict(connection.execute("SELECT status, COUNT(*) FROM loan_applications GROUP BY status").fetchall())
+        total = sum(counts.values())
+        approved, rejected = counts.get("approved", 0), counts.get("rejected", 0)
+        return {"total": total, "approved": approved, "rejected": rejected,
+                "pending": total - approved - rejected,
+                "approval_rate": round(100 * approved / total, 2) if total else 0,
+                "rejection_rate": round(100 * rejected / total, 2) if total else 0}
+
     def get_admin_portfolio_overview(self):
         """Return aggregated portfolio KPIs and reviewer workload.
 

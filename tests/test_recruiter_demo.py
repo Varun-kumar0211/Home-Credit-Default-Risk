@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 from Backend import main
-from Backend.auth import hash_password
+from Backend.auth import hash_password, issue_account_token
 from Backend.demo import DEMO_ACCOUNTS, initialize_demo
 from Backend.repository import DatasetRepository
 
@@ -40,9 +40,8 @@ def demo(tmp_path, monkeypatch, request):
 
 
 def demo_headers(client, role):
-    response = client.post("/auth/demo/" + role)
-    assert response.status_code == 200
-    return {"Authorization": "Bearer " + response.json()["access_token"]}
+    account = main.datasets.get_user(DEMO_ACCOUNTS[role])
+    return {"Authorization": "Bearer " + issue_account_token(account)["access_token"]}
 
 
 def test_demo_roles_are_read_only_and_cannot_manage_accounts(demo):
@@ -73,6 +72,7 @@ def test_demo_seed_is_small_idempotent_and_passwordless_only(demo, monkeypatch):
         assert connection.execute("SELECT COUNT(*) FROM manual_reviews").fetchone()[0] == 1
     assert client.post("/auth/register", json={"username": DEMO_ACCOUNTS["admin"], "password": "secret"}).status_code == 409
     assert client.post("/auth/demo/owner").status_code == 404
+    assert client.post("/auth/demo/admin").status_code == 404
     monkeypatch.setattr(main, "DEMO_ENABLED", False)
     assert client.get("/auth/demo").json() == {"enabled": False}
     assert client.post("/auth/demo/admin").status_code == 404
@@ -104,3 +104,15 @@ def test_real_four_role_workflow_and_upload_limits(demo):
     assert oversized.status_code == 413
     csv = pd.DataFrame([snapshot] * 51).to_csv(index=False).encode()
     assert client.post("/api/csv-analysis", headers=analyst, files={"file": ("rows.csv", csv, "text/csv")}).status_code == 400
+
+
+def test_analyst_aggregate_outcomes_and_role_isolation(demo):
+    repo, client = demo
+    headers = demo_headers(client, "analyst")
+    response = client.get("/api/analyst/portfolio", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"total": 2, "approved": 1, "rejected": 0,
+                               "pending": 1, "approval_rate": 50.0, "rejection_rate": 0.0}
+    for role in ("applicant", "reviewer", "admin"):
+        assert client.get("/api/analyst/portfolio", headers=demo_headers(client, role)).status_code == 403
+    assert client.get("/api/analyst/portfolio").status_code == 401

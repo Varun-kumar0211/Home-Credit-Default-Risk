@@ -15,12 +15,10 @@
     <section id="loginPanel" class="login-panel">
       <div><p class="eyebrow">SECURE WORKSPACE</p><h2 id="authTitle">Sign in to continue</h2><p class="muted" id="authSubtitle">Applicant, Analyst, Reviewer, and Admin accounts use the same secure sign-in. Your workspace opens automatically after verification.</p><div class="auth-tabs" role="tablist" aria-label="Authentication"><button id="loginTab" class="auth-tab active" type="button" role="tab" aria-selected="true">Login</button><button id="registerTab" class="auth-tab" type="button" role="tab" aria-selected="false">Create account</button></div><p id="loginMessage" class="bad" role="alert"></p></div>
       <div class="auth-forms">
-        <div id="recruiterDemo" class="recruiter-demo hidden"><h3>Explore RiskXplain</h3><p class="muted">One-click, read-only workspaces with fictional applications. No password needed.</p><div class="demo-buttons"><button type="button" class="secondary" data-demo-role="applicant">Applicant demo</button><button type="button" class="secondary" data-demo-role="analyst">Analyst demo</button><button type="button" class="secondary" data-demo-role="reviewer">Reviewer demo</button><button type="button" class="secondary" data-demo-role="admin">Admin overview</button></div><p class="muted">To submit your own fictional application, choose Create account.</p></div>
         <form id="loginForm" class="login-form"><input id="username" placeholder="Username" autocomplete="username" required><input id="password" type="password" placeholder="Password" autocomplete="current-password" required><button class="primary" type="submit">Sign in →</button></form>
         <form id="registerForm" class="login-form hidden"><input id="registerUsername" placeholder="Choose a username" autocomplete="username" required><input id="registerPassword" type="password" placeholder="Password" autocomplete="new-password" required><input id="registerConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" required><button class="primary" type="submit">Create account →</button><p class="muted">New accounts are Applicants. Staff access is provisioned separately.</p></form>
       </div>
     </section>
-    <p id="demoNotice" class="demo-notice hidden" role="status">Read-only recruiter demo · Fictional data only. Account changes, assignments, assessments and decisions are disabled. Logout and create your own Applicant account to submit a fictional application.</p>
     <div id="workspace" class="hidden app-shell">
       <aside class="sidebar">
         <p class="eyebrow">WORKSPACE</p>
@@ -30,7 +28,7 @@
         </nav>
         <nav id="analystNav" class="nav-group hidden" aria-label="Analyst workspace">
           <button data-page="manualPage">Manual assessment</button>
-          <button id="defaultLink" data-page="dashboardPage">Current dataset</button>
+          <button id="defaultLink" data-page="dashboardPage">Portfolio analysis</button>
           <button data-page="loanApplicationsPage">Loan applications</button>
           <button data-page="analystIntakePage">Applicant intake</button>
           <button data-page="uploadPage">Upload CSV</button>
@@ -99,19 +97,19 @@
         </section>
         <section id="dashboardPage" class="page hidden" data-role="analyst">
           <div class="section-heading"><div><p class="eyebrow">PORTFOLIO ANALYSIS</p><h1 id="datasetTitle">Portfolio analysis</h1></div></div>
-          <div id="metrics" class="metrics"></div>
+          <article class="panel"><h3>Application portfolio — human review outcomes</h3><p class="muted">All submitted applications. Rates use all applications, including pending cases.</p><div id="applicationPortfolio" role="status"></div><button id="refreshAnalystPortfolio" class="secondary" type="button">Refresh application totals</button></article><p class="muted">Dataset metrics below describe model recommendations, not final Reviewer decisions.</p><div id="metrics" class="metrics"></div>
           <div class="analysis-grid">
             <article class="panel wide"><div class="panel-heading"><div><p class="eyebrow">RISK OVERVIEW</p><h3>Portfolio risk mix</h3></div><span class="subtle">Thresholds: &lt;8% approve · 8–20% review · ≥20% decline</span></div><div id="riskOverview" class="risk-overview"></div></article>
             <article class="panel"><div class="panel-heading"><h3>Data health</h3><span id="healthSummary"></span></div><div id="qualityProfile"></div></article>
             <article class="panel"><h3>Occupation risk</h3><div id="targetProfile"></div></article>
-            <article class="panel"><h3>Segment analysis</h3><div id="segmentProfile"></div></article>
+            <article class="panel wide"><h3>Income, credit amount and credit score vs predicted risk</h3><div id="riskFeatures"></div></article><article class="panel wide"><h3>Financial input summary</h3><div id="numericProfile"></div></article><article class="panel"><h3>Segment analysis</h3><div id="segmentProfile"></div></article>
             <article class="panel wide"><div class="panel-heading"><div><h3>Financial correlation</h3><p class="muted">Correlation indicates statistical association, not causation.</p></div></div><div id="correlationProfile"></div></article>
             <article class="panel wide"><div class="panel-heading"><div><h3>Global SHAP drivers</h3><p class="muted">SHAP explains how features influenced the model prediction; it does not establish causality.</p></div></div><div id="shapProfile"></div></article>
             <article class="panel wide"><h3>Category distribution</h3><div id="categoryProfile" class="category-grid"></div></article>
           </div>
           <div class="section-heading applicants-heading"><div><p class="eyebrow">APPLICANTS</p><h2>Review applicants</h2><p class="muted">Filter the portfolio, then run an assessment for any valid applicant.</p></div></div>
           <div class="applicant-tools"><input id="applicantSearch" class="search" placeholder="Search applicant ID"><select id="riskFilter"><option value="">All risk</option><option value="Low Risk">Low risk</option><option value="Manual Review">Review</option><option value="High Risk">High risk</option></select><select id="occupationFilter"><option value="">All occupations</option></select><select id="contractFilter"><option value="">All contract types</option></select><select id="sortApplicants"><option value="risk-desc">Highest risk</option><option value="risk-asc">Lowest risk</option><option value="score-desc">Credit score</option><option value="amount-desc">Credit amount</option></select></div>
-          <div class="table-wrap"><table><thead><tr><th>Applicant ID</th><th>Occupation</th><th>Contract type</th><th>Credit score</th><th>Credit amount</th><th>Default risk</th><th>Risk tier</th><th>Action</th></tr></thead><tbody id="applicantRows"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Applicant ID</th><th>Occupation</th><th>Contract type</th><th>Credit score</th><th>Income</th><th>Credit amount</th><th>Default risk</th><th>Risk tier</th><th>Action</th></tr></thead><tbody id="applicantRows"></tbody></table></div>
         </section>
         <section id="uploadPage" class="page hidden" data-role="analyst">
           <div class="section-heading"><div><p class="eyebrow">DATA IMPORT</p><h1>Analyze a CSV portfolio</h1><p class="muted">Rows are validated before storage. Invalid rows remain visible but cannot be assessed.</p></div></div>

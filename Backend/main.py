@@ -35,8 +35,6 @@ app = FastAPI(title="Credit Scoring API Engine")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 datasets = DatasetRepository(DATASET_DB_PATH, database_url=DATABASE_URL)
 datasets.ensure_user(AUTH_USERNAME, hash_password(AUTH_PASSWORD))
-if DEMO_ENABLED:
-    initialize_demo(datasets, hash_password, model_id, artifact_hash)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
@@ -116,17 +114,12 @@ def register(credentials: RegisterRequest):
 
 @app.get("/auth/demo")
 def demo_availability():
-    return {"enabled": DEMO_ENABLED}
+    return {"enabled": False}
 
 
 @app.post("/auth/demo/{role}")
 def demo_login(role: str):
-    if not DEMO_ENABLED or role not in DEMO_ACCOUNTS:
-        raise HTTPException(status_code=404, detail="Demo is unavailable.")
-    user = datasets.get_user(DEMO_ACCOUNTS[role])
-    if not user or not user["is_active"] or user["role"] != role:
-        raise HTTPException(status_code=403, detail="Demo account is unavailable.")
-    return issue_account_token(user)
+    raise HTTPException(status_code=404, detail="Password-free demo access has been removed. Sign in with your account.")
 
 
 @app.get("/auth/me")
@@ -214,6 +207,13 @@ def applicant_detail(application_id: str, user: dict = Depends(_current_user)):
     if not application or application["source_type"] != "applicant":
         raise HTTPException(status_code=404, detail="Application not found.")
     return datasets.public_application(application, detail=True)
+
+
+@app.get("/api/analyst/portfolio")
+def analyst_portfolio(user: dict = Depends(_current_user)):
+    if user["role"] != "analyst":
+        raise HTTPException(status_code=403, detail="Analyst access is required.")
+    return datasets.get_analyst_portfolio_summary()
 
 
 @app.get("/api/analyst/intake")

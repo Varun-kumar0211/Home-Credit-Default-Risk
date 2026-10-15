@@ -65,7 +65,6 @@ function showAuthView(view) {
 
 function resetAuthChrome() {
   setReadOnlyDemo(false);
-  document.querySelector("#demoNotice")?.classList.add("hidden");
   analystLoaded = false;
   clearAdminState();
   clearReviewerState();
@@ -98,7 +97,6 @@ function applySession(identity) {
   }
   session = identity;
   setReadOnlyDemo(identity.read_only);
-  document.querySelector("#demoNotice")?.classList.toggle("hidden", !identity.read_only);
   document.querySelector("#loginPanel").classList.add("hidden");
   document.querySelector("#workspace").classList.remove("hidden");
   document.querySelector("#sessionActions").classList.remove("hidden");
@@ -203,22 +201,6 @@ function setupSettingsForm() {
 }
 
 async function start() {
-  api.demoAvailability().then(info => document.querySelector("#recruiterDemo")?.classList.toggle("hidden", !info.enabled)).catch(() => {});
-  document.querySelectorAll("[data-demo-role]").forEach(button => {
-    button.onclick = async () => {
-      let attempt = ++sessionSeq;
-      button.disabled = true;
-      try {
-        const response = await api.demoLogin(button.dataset.demoRole);
-        if (attempt !== sessionSeq) return;
-        setToken(response.access_token);
-        attempt = sessionSeq + 1;
-        await establishSession({ lazyAnalyst: true });
-      } catch (error) {
-        if (attempt === sessionSeq) document.querySelector("#loginMessage").textContent = error.message;
-      } finally { button.disabled = false; }
-    };
-  });
   const loginForm = document.querySelector("#loginForm");
   if (loginForm) loginForm.onsubmit = async event => {
     event.preventDefault();

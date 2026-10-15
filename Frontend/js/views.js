@@ -15,7 +15,7 @@ function viewGuard(external) {
 
 export function resetDatasetCache() {
   viewSession++; loanEpoch++; loanOffset = 0;
-  ["loanDetail", "loanApplicationRows", "loanCreateMessage", "loanAssessMessage", "loanPageInfo", "metrics", "applicantRows", "qualityProfile", "categoryProfile", "targetProfile", "segmentProfile", "correlationProfile", "shapProfile", "riskOverview", "resultContent"].forEach(id => {
+  ["loanDetail", "loanApplicationRows", "loanCreateMessage", "loanAssessMessage", "loanPageInfo", "metrics", "applicationPortfolio", "riskFeatures", "numericProfile", "applicantRows", "qualityProfile", "categoryProfile", "targetProfile", "segmentProfile", "correlationProfile", "shapProfile", "riskOverview", "resultContent"].forEach(id => {
     const target = document.getElementById(id); if (target) target.textContent = "";
   });
   ["manualForm", "loanApplicationForm"].forEach(id => document.getElementById(id)?.reset());
@@ -67,6 +67,18 @@ function showError(error) {
   target.classList.remove("hidden");
 }
 
+async function loadAnalystPortfolio() {
+  const stale = viewGuard();
+  const target = document.querySelector("#applicationPortfolio");
+  if (!target) return;
+  target.textContent = "Loading application totals…";
+  try {
+    const data = await api.analystPortfolio();
+    if (stale()) return;
+    target.textContent = `Applications: ${data.total} · Approved: ${data.approved} (${data.approval_rate}%) · Rejected: ${data.rejected} (${data.rejection_rate}%) · Pending: ${data.pending}`;
+  } catch (error) { if (!stale()) target.textContent = `Application totals unavailable: ${error.message}`; }
+}
+
 export function showDataset(payload, showPage) {
   current = { dataset: payload.dataset_id, applicants: payload.applicants };
   if (showPage) showPage("dashboardPage");
@@ -80,6 +92,10 @@ export function showDataset(payload, showPage) {
   document.querySelector("#categoryProfile").innerHTML = analysis.categories || "<p class='muted'>No categories detected.</p>";
   document.querySelector("#targetProfile").innerHTML = renderTarget(payload.analysis);
   document.querySelector("#segmentProfile").innerHTML = renderSegments(payload.analysis);
+  document.querySelector("#riskFeatures").innerHTML = renderRiskFeatures(payload.analysis);
+  document.querySelector("#numericProfile").innerHTML = analysis.numeric;
+  loadAnalystPortfolio();
+  document.querySelector("#refreshAnalystPortfolio").onclick = loadAnalystPortfolio;
   document.querySelector("#correlationProfile").innerHTML = renderCorrelation(payload.analysis);
   document.querySelector("#shapProfile").innerHTML = renderGlobalShap(payload.analysis);
   ["occupationFilter", "contractFilter"].forEach((id) => {

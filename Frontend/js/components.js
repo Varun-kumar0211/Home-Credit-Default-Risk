@@ -6,6 +6,9 @@ export function renderMetrics(analysis) {
   const missing = (analysis.missing_values || []).reduce((sum, item) => sum + item.missing, 0);
   const metrics = [["Applicants", analysis.rows], ["Fields", analysis.columns], ["Missing values", missing], ["Valid rows", analysis.valid_rows ?? analysis.rows]];
   if (analysis.average_default_probability !== undefined) metrics.push(["Avg. default risk", `${analysis.average_default_probability}%`]);
+  for (const [key, label] of [["approval_rate", "Model approval rate"], ["decline_rate", "Model decline rate"], ["review_rate", "Model review rate"]]) {
+    if (analysis[key] !== undefined) metrics.push([label, `${analysis[key]}%`]);
+  }
   return metrics
     .map(([label, value]) => `<div class="metric"><small>${label}</small><strong>${value}</strong><span class="subtle">Portfolio insight</span></div>`).join("");
 }
@@ -102,9 +105,9 @@ export function renderApplicants(applicants, onAssess) {
     const invalid = item.validation?.length;
     const probability = item.assessment?.default_probability;
     const risk = probability === undefined ? null : probability <= approve ? "Low Risk" : probability < decline ? "Manual Review" : "High Risk";
-    return `<tr><td class="id">${item.id}</td><td class="profile">${esc(values.OCCUPATION || "—")}</td><td>${esc(values.CONTRACT_TYPE || "—")}</td><td>${values.CREDIT_SCORE ?? "—"}</td><td>$${Number(values.CREDIT_AMOUNT || 0).toLocaleString()}</td><td>${probability === undefined ? "—" : `${(probability * 100).toFixed(2)}%`}</td><td>${risk ? `<span class="risk-badge ${risk === "Low Risk" ? "low" : risk === "High Risk" ? "high" : "review"}">${risk}</span>` : "—"}</td><td>${invalid ? `<span class="bad">${item.validation.length} validation errors</span>` : `<button class="run" data-id="${item.id}">Run assessment →</button>`}</td></tr>`;
+    return `<tr><td class="id">${item.id}</td><td class="profile">${esc(values.OCCUPATION || "—")}</td><td>${esc(values.CONTRACT_TYPE || "—")}</td><td>${values.CREDIT_SCORE ?? "—"}</td><td>$${Number(values.TOTAL_INCOME || 0).toLocaleString()}</td><td>$${Number(values.CREDIT_AMOUNT || 0).toLocaleString()}</td><td>${probability === undefined ? "—" : `${(probability * 100).toFixed(2)}%`}</td><td>${risk ? `<span class="risk-badge ${risk === "Low Risk" ? "low" : risk === "High Risk" ? "high" : "review"}">${risk}</span>` : "—"}</td><td>${invalid ? `<span class="bad">${item.validation.length} validation errors</span>` : `<button class="run" data-id="${item.id}">Run assessment →</button>`}</td></tr>`;
   }).join("");
-  document.querySelector("#applicantRows").innerHTML = rows || "<tr><td colspan='8'>No applicants found.</td></tr>";
+  document.querySelector("#applicantRows").innerHTML = rows || "<tr><td colspan='9'>No applicants found.</td></tr>";
   document.querySelectorAll(".run").forEach(button => button.onclick = () => onAssess(button));
 }
 

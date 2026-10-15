@@ -4,21 +4,26 @@ A student portfolio project demonstrating explainable loan applications across *
 
 **Public URL:** will be added after the approved Render release is deployed and verified.
 
-## Recruiter demo
+## Teacher presentation (localhost)
 
-Open the login page and choose **Applicant demo**, **Analyst demo**, **Reviewer demo**, or **Admin overview**. No password is needed. Logout to switch workspaces.
+Run `python scripts/run_presentation.py` and open `http://127.0.0.1:8001/`.
+The setup uses a separate `Data/presentation.sqlite3`; other databases stay intact.
+It creates four writable accounts and two fictional sample applications on first start.
+The intentionally simple local credentials are defined in `scripts/run_presentation.py`.
+No public password-free login buttons or demo banner are provided.
 
-- Applicant: inspect Approved and Awaiting Review application statuses.
-- Analyst: open a stored application and inspect its financial snapshot and assessment.
-- Reviewer: open the pending application for model recommendation and signed SHAP explanations; inspect Review history.
-- Admin: inspect portfolio counts, assignments, user directory and sanitized audits.
+Show Applicant submission -> Analyst intake/claim and Reviewer assignment -> prediction/SHAP ->
+Reviewer approval/rejection -> Applicant status. Then show Admin portfolio, assignment history,
+user management (with reasons and version-conflict protection), and audit filters.
+Do not deactivate or demote your only Admin; use a separate account for account changes.
 
-The two fictional examples are **read-only**, enforced by the backend. Demo sessions cannot submit applications, run assessments, review, reassign or change account access. Random demo passwords are never published. Real Admin credentials stay private. To try submission, logout and create your own Applicant account using fictional inputs; a private Analyst/Reviewer processes it.
+Analyst **Portfolio analysis** shows human application outcome totals separately from dataset
+model recommendation rates. Explore income/credit/score risk comparisons, financial summaries,
+correlations, segments, global SHAP, applicant risk filters and individual assessments.
+CSV analysis stays bounded to 50 rows / 1 MiB. Final human decisions remain with Reviewers.
 
-![One-click recruiter entry](docs/screenshots/recruiter-login.jpg)
-![Admin portfolio overview](docs/screenshots/admin-overview.jpg)
-![Applicant status tracking](docs/screenshots/applicant-status.jpg)
-![Reviewer model and SHAP explanation](docs/screenshots/reviewer-explanation.jpg)
+The classroom credentials belong only on localhost. Cloud accounts are provisioned separately.
+Historical screenshots in `docs/screenshots` predate removal of the recruiter entry.
 
 ## Technology stack
 
@@ -42,7 +47,7 @@ Model logic/artifacts are unchanged. scikit-learn 1.9.1 matches the calibrated a
 4. Applicant sees the final status, without staff notes, predictions, SHAP or audit data.
 5. Private Admin manages accounts/assignments and reads operational history.
 
-Lists are paginated. Database role, activation and session-version checks remain authoritative. Final decisions cannot be reopened through reassessment. Demo startup loads two precomputed examples without inference; repeated initialization does not duplicate them.
+Lists are paginated. Database role, activation and session-version checks remain authoritative. Final decisions cannot be reopened through reassessment. The local presentation setup loads two precomputed examples without inference; restarting preserves them.
 
 ## Run locally
 
@@ -50,7 +55,7 @@ Lists are paginated. Database role, activation and session-version checks remain
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
-$env:DEMO_ENABLED = 'true'
+$env:DEMO_ENABLED = 'false'
 python -m uvicorn Backend.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
@@ -85,13 +90,13 @@ The existing GitHub destination is `https://github.com/Varun-kumar0211/Home-Cred
 | `CREDIT_JWT_SECRET` | Long random private secret |
 | `CREDIT_AUTH_USERNAME` | Private bootstrap Analyst username |
 | `CREDIT_AUTH_PASSWORD` | Strong private bootstrap password |
-| `DEMO_ENABLED` | `true` |
+| `DEMO_ENABLED` | `false` (public demo retired) |
 | `WEB_CONCURRENCY` | `1` |
 
 Render supplies `PORT`; the entrypoint binds `0.0.0.0:$PORT`. Production refuses missing secrets/DB URL and filesystem-only persistence. PostgreSQL tables initialize automatically. Connections are fresh per operation, commit/rollback and close on context exit; subsequent operations reconnect after socket loss. No pool or background job is required.
 
-5. After separate deployment approval, deploy and inspect build/startup logs. Verify HTTPS login, `/health` with `model: calibrated`, all four demo buttons and persistence after restart. Add the verified public URL above.
-6. Keep private staff accounts separate. Bootstrap creates an **Analyst**, not an Admin. The demo already supports read-only exploration of all four workspaces. To process new applications, provision private Reviewer/Admin accounts once using the existing repository helpers and prompted passwords. Never publish unrestricted staff credentials or use the development-only seed script against Neon.
+5. After separate deployment approval, deploy and inspect build/startup logs. Verify HTTPS login, `/health` with `model: calibrated`, all four password-based workspaces and persistence after restart. Add the verified public URL above.
+6. Keep private staff accounts separate. Bootstrap creates an **Analyst**, not an Admin. To process new applications, provision private Reviewer/Admin accounts once using the existing repository helpers and prompted passwords. Never publish unrestricted staff credentials or use the development-only seed script against Neon.
 
 One-time operator provisioning, only after approval, with the intended demo PostgreSQL URL and required production settings loaded privately in the local environment:
 
@@ -117,8 +122,8 @@ Existing usernames are preserved. If creation fails, inspect the account rather 
 - CSV analysis accepts **50 rows / 1 MiB**; JSON batches accept 50 applications. Use the bundled 30-row dataset. One worker, numerical thread limits and an eight-request server concurrency cap bound simultaneous work. Excess requests receive HTTP 503; retry after a moment.
 - **Missing settings:** supply all required variables in Render; do not put secrets in Git or Docker build arguments.
 - **DB connection failure:** check Neon URL, SSL and credentials; a later request opens a fresh connection. Do not blindly replay a write with an unknown outcome. `/health` does not probe the database.
-- **Demo unavailable:** check `DEMO_ENABLED=true`, startup logs, reserved account roles, and inclusion of the calibrated artifact plus `Data/recruiter_demo.json`.
-- **Read-only action error:** intentional for demo sessions. Use your own Applicant or private staff account for changes.
+- **Presentation login fails:** start `scripts/run_presentation.py` and use its port 8001, not another server/database.
+- **Read-only action error:** old recruiter accounts remain restricted; log out and use the new presentation accounts.
 - **Invalid staff login:** registration cannot create staff. Changing bootstrap environment variables does not reset an existing DB password.
 - **Model version warning:** use pinned requirements and the verified artifact; do not suppress warnings or replace/retrain the model.
 - **Windows Docker startup script failure:** shell scripts use LF via `.gitattributes`. Entrypoint runs from `/app` so serialized Backend classes import correctly.
